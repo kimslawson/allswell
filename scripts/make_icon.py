@@ -88,10 +88,12 @@ def draw_page(icon):
     y0 = (S - page_h) // 2 + 6
     x1, y1 = x0 + page_w, y0 + page_h
 
-    # Soft drop shadow under the page.
+    # Soft drop shadow under the page, following the dog-eared outline.
     shadow = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(shadow).rounded_rectangle((x0, y0 + 10, x1, y1 + 14),
-                                             radius=10, fill=255)
+    shadow_page = [(x, y + 12) for x, y in
+                   [(x0, y0), (x1 - fold, y0), (x1, y0 + fold),
+                    (x1, y1), (x0, y1)]]
+    ImageDraw.Draw(shadow).polygon(shadow_page, fill=255)
     shadow = shadow.filter(ImageFilter.GaussianBlur(16))
     shadow = ImageChops.multiply(shadow, rounded_mask(BOX, RADIUS))
     icon.paste(Image.new("RGBA", (S, S), (30, 30, 40, 255)), (0, 0),

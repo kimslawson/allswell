@@ -9,6 +9,7 @@ import Foundation
 final class FFmpegConverter: Converter {
     static let mp3 = OutputFormat(id: "mp3", title: "MP3", fileExtension: "mp3")
     static let ogg = OutputFormat(id: "ogg", title: "OGG", fileExtension: "ogg")
+    static let webm = OutputFormat(id: "webm", title: "WebM", fileExtension: "webm")
 
     private let executableURL: URL
 
@@ -30,7 +31,11 @@ final class FFmpegConverter: Converter {
     }
 
     func outputFormats(for mediaClass: MediaClass) -> [OutputFormat] {
-        mediaClass == .audio ? [Self.mp3, Self.ogg] : []
+        switch mediaClass {
+        case .audio: return [Self.mp3, Self.ogg]
+        case .video: return [Self.webm, Self.mp3]
+        case .image: return []
+        }
     }
 
     func canConvert(_ media: LoadedMedia, to format: OutputFormat) -> Bool {
@@ -39,16 +44,30 @@ final class FFmpegConverter: Converter {
     }
 
     /// Codec arguments per (media class, format). Includes the native
-    /// backends' formats so ffmpeg can be the fallback reader for them.
+    /// backends' formats so ffmpeg can be the fallback reader for them
+    /// (MKV in, MP4 out; OGG in, FLAC out).
     private static func encoderArguments(for mediaClass: MediaClass, formatID: String) -> [String]? {
-        guard mediaClass == .audio else { return nil }
-        switch formatID {
-        case "mp3": return ["-codec:a", "libmp3lame", "-q:a", "1"]
-        case "ogg": return ["-codec:a", "libvorbis", "-q:a", "6"]
-        case "m4a": return ["-codec:a", "aac", "-b:a", "256k"]
-        case "wav": return ["-codec:a", "pcm_s16le"]
-        case "flac": return ["-codec:a", "flac"]
-        case "alac": return ["-codec:a", "alac"]
+        switch (mediaClass, formatID) {
+        case (.audio, "mp3"): return ["-codec:a", "libmp3lame", "-q:a", "1"]
+        case (.audio, "ogg"): return ["-codec:a", "libvorbis", "-q:a", "6"]
+        case (.audio, "m4a"): return ["-codec:a", "aac", "-b:a", "256k"]
+        case (.audio, "wav"): return ["-codec:a", "pcm_s16le"]
+        case (.audio, "flac"): return ["-codec:a", "flac"]
+        case (.audio, "alac"): return ["-codec:a", "alac"]
+        case (.video, "mp4-h264"):
+            return ["-codec:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                    "-codec:a", "aac", "-b:a", "192k", "-movflags", "+faststart"]
+        case (.video, "mp4-hevc"):
+            return ["-codec:v", "libx265", "-preset", "fast", "-crf", "23",
+                    "-tag:v", "hvc1", "-codec:a", "aac", "-b:a", "192k"]
+        case (.video, "mov-prores"):
+            return ["-codec:v", "prores_ks", "-profile:v", "2",
+                    "-codec:a", "pcm_s16le"]
+        case (.video, "webm"):
+            return ["-codec:v", "libvpx-vp9", "-crf", "32", "-b:v", "0",
+                    "-row-mt", "1", "-codec:a", "libopus"]
+        case (.video, "m4a"): return ["-vn", "-codec:a", "aac", "-b:a", "256k"]
+        case (.video, "mp3"): return ["-vn", "-codec:a", "libmp3lame", "-q:a", "1"]
         default: return nil
         }
     }
@@ -103,7 +122,8 @@ final class FFmpegConverter: Converter {
         }
 
         task.onCancel = { [weak process] in
-            process?.terminate()
+            guard let process, process.isRunning else { return }
+            process.terminate()
         }
         process.terminationHandler = { process in
             stdout.fileHandleForReading.readabilityHandler = nil

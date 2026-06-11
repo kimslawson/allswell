@@ -119,7 +119,7 @@ final class ConverterRegistry {
 /// Classifies incoming files and builds `LoadedMedia` for them.
 enum MediaLoader {
     /// UTTypes the app accepts, in any intake path (drag, paste, Dock).
-    static var acceptedTypes: [UTType] { [.image, .audio] }
+    static var acceptedTypes: [UTType] { [.image, .movie, .audio] }
 
     static func load(from url: URL) -> LoadedMedia? {
         guard let type = contentType(of: url) else { return nil }
@@ -130,6 +130,16 @@ enum MediaLoader {
                                mediaClass: .image,
                                suggestedName: suggestedName,
                                preferredFormatID: loaded.sourceWasHEIC ? "jpg" : nil)
+        }
+        if type.conforms(to: .movie) {
+            // The HEIC grudge, generalized: hostile containers default the
+            // picker to MP4 H.264 instead of the remembered choice.
+            let isNativeContainer = VideoConverter.readableExtensions
+                .contains(url.pathExtension.lowercased())
+            return LoadedMedia(payload: .file(url),
+                               mediaClass: .video,
+                               suggestedName: suggestedName,
+                               preferredFormatID: isNativeContainer ? nil : "mp4-h264")
         }
         if type.conforms(to: .audio) {
             return LoadedMedia(payload: .file(url),

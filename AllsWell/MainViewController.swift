@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import UniformTypeIdentifiers
 
 final class MainViewController: NSViewController, WellViewDelegate {
@@ -12,7 +13,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
     }
 
     private let registry: ConverterRegistry = {
-        var converters: [Converter] = [ImageIOConverter(), AudioFileConverter()]
+        var converters: [Converter] = [ImageIOConverter(), AudioFileConverter(), VideoConverter()]
         // If a Homebrew/MacPorts ffmpeg exists, its formats appear by magic.
         if let ffmpeg = FFmpegConverter.probe() {
             converters.append(ffmpeg)
@@ -224,9 +225,32 @@ final class MainViewController: NSViewController, WellViewDelegate {
         lastSavedURL = nil
         lastSavedFormatID = nil
         well.image = displayImage(for: media)
+        if media.mediaClass == .video, case .file(let url) = media.payload {
+            loadVideoThumbnail(for: url)
+        }
         nameField.stringValue = media.suggestedName
         reloadFormats(for: media.mediaClass, preferredID: media.preferredFormatID)
         convertAndSave()
+    }
+
+    /// Swaps the placeholder film glyph for the movie's poster frame once it
+    /// can be decoded (it can't for ffmpeg-only containers; the glyph stays).
+    private func loadVideoThumbnail(for url: URL) {
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 1024, height: 1024)
+        generator.generateCGImageAsynchronously(for: CMTime(seconds: 0, preferredTimescale: 600)) {
+            [weak self] cgImage, _, _ in
+            guard let cgImage else { return }
+            DispatchQueue.main.async {
+                guard let self,
+                      let media = self.current,
+                      case .file(let currentURL) = media.payload,
+                      currentURL == url else { return }
+                self.well.image = NSImage(cgImage: cgImage,
+                                          size: NSSize(width: cgImage.width, height: cgImage.height))
+            }
+        }
     }
 
     private func displayImage(for media: LoadedMedia) -> NSImage? {

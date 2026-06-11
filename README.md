@@ -9,10 +9,17 @@ folder of your choice.
 |:---:|:---:|
 | Drag a file to the app icon in the Dock | or to the well |
 
-Today the well converts images (PNG, JPG) and audio (M4A/AAC, WAV, FLAC,
-ALAC — plus MP3 and OGG if you have ffmpeg installed). Video is next: the
-conversion engine is a small `Converter` protocol, and each media class is a
-backend behind it.
+One well, type-aware: the format picker offers what makes sense for what you
+dropped.
+
+| In | Out (native) | Out (with ffmpeg installed) |
+|---|---|---|
+| Images | PNG, JPG | — |
+| Audio | M4A/AAC, WAV, FLAC, ALAC | + MP3, OGG |
+| Video | MP4 H.264, MP4 HEVC, MOV ProRes, M4A (audio extract) | + WebM, MP3 extract |
+
+The conversion engine is a small `Converter` protocol with ImageIO,
+AVFoundation, and (optionally) ffmpeg backends behind it.
 
 ## Behavior
 
@@ -37,10 +44,15 @@ backend behind it.
   upright. JPG exports use 0.9 quality and flatten transparency onto white.
 - **Audio converts natively.** MP3, WAV, AIFF, CAF, FLAC, M4A in; M4A/AAC,
   WAV, FLAC, ALAC out — all via AVFoundation, no dependencies.
+- **Video auto-starts.** Drop a movie and the transcode begins immediately;
+  the well shows the poster frame, a thin progress bar with a cancel ✕
+  appears, and a toast lands when it's done. Weird containers default the
+  picker to MP4 H.264, the way HEIC defaults images to JPG.
 - **ffmpeg appears by magic.** If a Homebrew or MacPorts ffmpeg is installed
-  (`/opt/homebrew/bin`, `/usr/local/bin`, `/opt/local/bin`), MP3 and OGG
-  quietly join the audio picker, and formats AVFoundation can't read (OGG
-  in, for instance) still convert. No ffmpeg, no trace of it.
+  (`/opt/homebrew/bin`, `/usr/local/bin`, `/opt/local/bin`), MP3, OGG, and
+  WebM quietly join the pickers — including MP3-extract-from-video — and
+  containers AVFoundation can't read (MKV, WebM, AVI, OGG, …) still
+  convert. No ffmpeg, no trace of it.
 - **Destination memory.** Defaults to the Desktop; remembers the last folder
   you picked (and the last format per media class) across launches.
 

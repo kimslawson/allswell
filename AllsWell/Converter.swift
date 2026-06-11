@@ -119,16 +119,23 @@ final class ConverterRegistry {
 /// Classifies incoming files and builds `LoadedMedia` for them.
 enum MediaLoader {
     /// UTTypes the app accepts, in any intake path (drag, paste, Dock).
-    static var acceptedTypes: [UTType] { [.image] }
+    static var acceptedTypes: [UTType] { [.image, .audio] }
 
     static func load(from url: URL) -> LoadedMedia? {
         guard let type = contentType(of: url) else { return nil }
+        let suggestedName = url.deletingPathExtension().lastPathComponent
         if type.conforms(to: .image) {
             guard let loaded = ImageLoader.load(from: url) else { return nil }
             return LoadedMedia(payload: .image(loaded),
                                mediaClass: .image,
-                               suggestedName: url.deletingPathExtension().lastPathComponent,
+                               suggestedName: suggestedName,
                                preferredFormatID: loaded.sourceWasHEIC ? "jpg" : nil)
+        }
+        if type.conforms(to: .audio) {
+            return LoadedMedia(payload: .file(url),
+                               mediaClass: .audio,
+                               suggestedName: suggestedName,
+                               preferredFormatID: nil)
         }
         return nil
     }

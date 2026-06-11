@@ -9,7 +9,8 @@ folder of your choice.
 |:---:|:---:|
 | Drag a file to the app icon in the Dock | or to the well |
 
-Today the well converts images (PNG, JPG). Audio and video are next: the
+Today the well converts images (PNG, JPG) and audio (M4A/AAC, WAV, FLAC,
+ALAC — plus MP3 and OGG if you have ffmpeg installed). Video is next: the
 conversion engine is a small `Converter` protocol, and each media class is a
 backend behind it.
 
@@ -34,6 +35,12 @@ backend behind it.
   picker to JPG. Anything ImageIO can read natively (TIFF, GIF, BMP, WebP,
   …) is ingested and converted; EXIF rotation is baked in so exports are
   upright. JPG exports use 0.9 quality and flatten transparency onto white.
+- **Audio converts natively.** MP3, WAV, AIFF, CAF, FLAC, M4A in; M4A/AAC,
+  WAV, FLAC, ALAC out — all via AVFoundation, no dependencies.
+- **ffmpeg appears by magic.** If a Homebrew or MacPorts ffmpeg is installed
+  (`/opt/homebrew/bin`, `/usr/local/bin`, `/opt/local/bin`), MP3 and OGG
+  quietly join the audio picker, and formats AVFoundation can't read (OGG
+  in, for instance) still convert. No ffmpeg, no trace of it.
 - **Destination memory.** Defaults to the Desktop; remembers the last folder
   you picked (and the last format per media class) across launches.
 
@@ -41,7 +48,8 @@ The window is a utility panel — narrow titlebar, small traffic lights, small
 title. The filename, format, and destination controls live in a compact strip
 under the well.
 
-No dependencies. AppKit + ImageIO only.
+No dependencies. AppKit + ImageIO + AVFoundation only (ffmpeg strictly
+optional, never bundled).
 
 ## Building
 

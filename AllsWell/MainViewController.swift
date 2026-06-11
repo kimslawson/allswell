@@ -11,9 +11,14 @@ final class MainViewController: NSViewController, WellViewDelegate {
         }
     }
 
-    private let registry = ConverterRegistry(converters: [
-        ImageIOConverter(),
-    ])
+    private let registry: ConverterRegistry = {
+        var converters: [Converter] = [ImageIOConverter(), AudioFileConverter()]
+        // If a Homebrew/MacPorts ffmpeg exists, its formats appear by magic.
+        if let ffmpeg = FFmpegConverter.probe() {
+            converters.append(ffmpeg)
+        }
+        return ConverterRegistry(converters: converters)
+    }()
 
     private let well = WellView(frame: .zero)
     private let nameField = NSTextField(string: "")

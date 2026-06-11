@@ -14,6 +14,8 @@
 		AB0000000000000000000105 /* WellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000005 /* WellView.swift */; };
 		AB0000000000000000000106 /* Converter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000006 /* Converter.swift */; };
 		AB0000000000000000000108 /* ImageConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000000000000000000000A /* ImageConverter.swift */; };
+		AB0000000000000000000109 /* AudioConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000000000000000000000B /* AudioConverter.swift */; };
+		AB000000000000000000010A /* FFmpegConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000000000000000000000C /* FFmpegConverter.swift */; };
 		AB0000000000000000000107 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000008 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -25,6 +27,8 @@
 		AB0000000000000000000005 /* WellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WellView.swift; sourceTree = "<group>"; };
 		AB0000000000000000000006 /* Converter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Converter.swift; sourceTree = "<group>"; };
 		AB000000000000000000000A /* ImageConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageConverter.swift; sourceTree = "<group>"; };
+		AB000000000000000000000B /* AudioConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioConverter.swift; sourceTree = "<group>"; };
+		AB000000000000000000000C /* FFmpegConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FFmpegConverter.swift; sourceTree = "<group>"; };
 		AB0000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AB0000000000000000000008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AB0000000000000000000009 /* AllsWell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AllsWell.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -59,6 +63,8 @@
 				AB0000000000000000000005 /* WellView.swift */,
 				AB0000000000000000000006 /* Converter.swift */,
 				AB000000000000000000000A /* ImageConverter.swift */,
+				AB000000000000000000000B /* AudioConverter.swift */,
+				AB000000000000000000000C /* FFmpegConverter.swift */,
 				AB0000000000000000000008 /* Assets.xcassets */,
 				AB0000000000000000000007 /* Info.plist */,
 			);
@@ -149,6 +155,8 @@
 				AB0000000000000000000105 /* WellView.swift in Sources */,
 				AB0000000000000000000106 /* Converter.swift in Sources */,
 				AB0000000000000000000108 /* ImageConverter.swift in Sources */,
+				AB0000000000000000000109 /* AudioConverter.swift in Sources */,
+				AB000000000000000000010A /* FFmpegConverter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

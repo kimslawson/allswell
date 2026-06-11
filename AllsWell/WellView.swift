@@ -14,7 +14,7 @@ final class WellView: NSView, NSUserInterfaceValidations {
         didSet { needsDisplay = true }
     }
 
-    var placeholder = "Drop or paste an image" {
+    var placeholder = "Drop or paste a file" {
         didSet { needsDisplay = true }
     }
 

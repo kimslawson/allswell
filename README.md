@@ -52,7 +52,10 @@ AVFoundation, and (optionally) ffmpeg backends behind it.
   (`/opt/homebrew/bin`, `/usr/local/bin`, `/opt/local/bin`), MP3, OGG, and
   WebM quietly join the pickers — including MP3-extract-from-video — and
   containers AVFoundation can't read (MKV, WebM, AVI, OGG, …) still
-  convert. No ffmpeg, no trace of it.
+  convert. The app checks which encoders your particular build ships
+  (`ffmpeg -encoders`) and offers only those, so a vorbis-less build
+  simply has no OGG entry rather than a dead one. No ffmpeg, no trace
+  of it.
 - **Destination memory.** Defaults to the Desktop; remembers the last folder
   you picked (and the last format per media class) across launches.
 

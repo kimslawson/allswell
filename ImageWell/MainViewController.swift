@@ -140,11 +140,23 @@ final class MainViewController: NSViewController, ImageWellViewDelegate {
     // MARK: Intake
 
     func ingest(_ url: URL) {
-        guard let loaded = ImageLoader.load(from: url) else {
-            NSSound.beep()
+        ingest(url, attempt: 0)
+    }
+
+    /// Dock drops of promised files (e.g. drags out of a browser) can hand us
+    /// a path the source app is still writing; poll briefly before giving up.
+    private func ingest(_ url: URL, attempt: Int) {
+        if let loaded = ImageLoader.load(from: url) {
+            ingest(loaded)
             return
         }
-        ingest(loaded)
+        if attempt < 10 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                self?.ingest(url, attempt: attempt + 1)
+            }
+        } else {
+            NSSound.beep()
+        }
     }
 
     func imageWellView(_ view: ImageWellView, didReceive loaded: LoadedImage) {

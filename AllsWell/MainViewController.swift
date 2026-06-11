@@ -28,6 +28,9 @@ final class MainViewController: NSViewController, WellViewDelegate {
         // If a Homebrew/MacPorts ffmpeg exists, its formats appear by magic.
         if let ffmpeg = FFmpegConverter.probe() {
             converters.append(ffmpeg)
+            ConversionLog.shared.info("ffmpeg found at \(ffmpeg.path) — extra formats enabled")
+        } else {
+            ConversionLog.shared.info("No ffmpeg found — native formats only")
         }
         return ConverterRegistry(converters: converters)
     }()
@@ -568,6 +571,10 @@ final class MainViewController: NSViewController, WellViewDelegate {
                 if let saved = item.savedURL {
                     try? FileManager.default.trashItem(at: saved, resultingItemURL: nil)
                 }
+                if !item.skipped {
+                    ConversionLog.shared.info(
+                        "Skipped \(item.media.suggestedName) — already \(format.title)")
+                }
                 items[index].savedURL = nil
                 items[index].savedFormatID = nil
                 items[index].skipped = true
@@ -601,6 +608,9 @@ final class MainViewController: NSViewController, WellViewDelegate {
                   let converter = registry.converter(for: item.media, to: format) else {
                 items[index].failed = true
                 queueDone += 1
+                let target = selectedFormat(for: item.media.mediaClass)?.title ?? "?"
+                ConversionLog.shared.error(
+                    "\(item.media.suggestedName): no converter can produce \(target) from this file")
                 if items.count == 1 {
                     NSSound.beep()
                     showToast("Can’t convert this file")
@@ -644,10 +654,13 @@ final class MainViewController: NSViewController, WellViewDelegate {
                     self.pendingIndexes = []
                     self.hideProgressUI()
                     self.showToast("Canceled")
+                    ConversionLog.shared.info("Canceled — \(media.suggestedName) and the rest of the queue")
                     return
                 }
                 self.queueDone += 1
                 self.items[index].failed = true
+                ConversionLog.shared.error(
+                    "\(media.suggestedName) → \(format.title): \(error.localizedDescription)")
                 if self.items.count == 1 {
                     _ = self.presentError(error)
                 }
@@ -668,6 +681,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
             items[index].savedURL = url
             items[index].savedFormatID = format.id
             items[index].failed = false
+            ConversionLog.shared.info("Saved \(url.path)")
             if items.count == 1 {
                 // Reflect any de-duplication ("name 2") back into the field.
                 nameField.stringValue = url.deletingPathExtension().lastPathComponent
@@ -675,6 +689,8 @@ final class MainViewController: NSViewController, WellViewDelegate {
             }
         } catch {
             items[index].failed = true
+            ConversionLog.shared.error(
+                "\(name): could not save — \(error.localizedDescription)")
             if items.count == 1 {
                 _ = presentError(error)
             }
@@ -693,6 +709,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
         if failed > 0 { parts.append("\(failed) failed") }
         if !parts.isEmpty {
             showToast(parts.joined(separator: " · "))
+            ConversionLog.shared.info("Batch finished — " + parts.joined(separator: " · "))
         }
     }
 

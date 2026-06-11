@@ -19,6 +19,8 @@ final class FFmpegConverter: Converter {
     private let executableURL: URL
     private let encoders: Set<String>
 
+    var path: String { executableURL.path }
+
     private init(executableURL: URL, encoders: Set<String>) {
         self.executableURL = executableURL
         self.encoders = encoders

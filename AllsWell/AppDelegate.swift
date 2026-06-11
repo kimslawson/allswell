@@ -2,6 +2,7 @@ import AppKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowController: MainWindowController?
+    private var logWindowController: LogWindowController?
     private var pendingURLs: [URL] = []
 
     func applicationWillFinishLaunching(_ notification: Notification) {
@@ -93,8 +94,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowMenu.addItem(NSMenuItem(title: "Minimize",
                                       action: #selector(NSWindow.performMiniaturize(_:)),
                                       keyEquivalent: "m"))
+        windowMenu.addItem(.separator())
+        let showLog = NSMenuItem(title: "Show Log",
+                                 action: #selector(showLog(_:)),
+                                 keyEquivalent: "l")
+        showLog.target = self
+        windowMenu.addItem(showLog)
         NSApp.windowsMenu = windowMenu
 
         NSApp.mainMenu = mainMenu
+    }
+
+    @objc private func showLog(_ sender: Any?) {
+        if logWindowController == nil {
+            logWindowController = LogWindowController()
+        }
+        logWindowController?.showWindow(nil)
+        logWindowController?.window?.makeKeyAndOrderFront(nil)
     }
 }

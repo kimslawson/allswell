@@ -37,6 +37,10 @@ AVFoundation, and (optionally) ffmpeg backends behind it.
 - **In place.** A checkbox switches output from the chosen folder to
   next-to-the-original, handy for batch drops; the folder picker blanks out
   while it's on.
+- **The log knows why.** Window ▸ Show Log (⌘L) opens a second window with
+  every save, skip, and failure (with the reason) for the session —
+  filterable, errors-only scope, selectable and copyable. Batches never
+  interrupt with dialogs; this is where their errors land.
 - **Auto-save.** The moment something lands, it is converted and written to
   the current destination using the current filename and format. A small toast
   confirms where it went. Conversions that take more than a beat show a thin

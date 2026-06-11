@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>ImageWell</string>
+	<string>AllsWell</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -29,11 +29,11 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 	<key>NSDesktopFolderUsageDescription</key>
-	<string>ImageWell saves converted images to the folder you choose.</string>
+	<string>AllsWell saves converted files to the folder you choose.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>ImageWell saves converted images to the folder you choose.</string>
+	<string>AllsWell saves converted files to the folder you choose.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>ImageWell saves converted images to the folder you choose.</string>
+	<string>AllsWell saves converted files to the folder you choose.</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

@@ -15,7 +15,7 @@ final class MainWindowController: NSWindowController {
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .utilityWindow],
             backing: .buffered,
             defer: false)
-        panel.title = "ImageWell"
+        panel.title = "AllsWell"
         panel.isFloatingPanel = false
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
@@ -23,7 +23,7 @@ final class MainWindowController: NSWindowController {
         panel.center()
         self.init(window: panel)
         contentViewController = MainViewController()
-        panel.setFrameAutosaveName("ImageWellMainWindow")
+        panel.setFrameAutosaveName("AllsWellMainWindow")
     }
 
     func ingest(_ url: URL) {

@@ -1,16 +1,20 @@
 import AppKit
 import UniformTypeIdentifiers
 
-protocol ImageWellViewDelegate: AnyObject {
-    func imageWellView(_ view: ImageWellView, didReceive loaded: LoadedImage)
-    func imageWellViewDidDoubleClick(_ view: ImageWellView)
+protocol WellViewDelegate: AnyObject {
+    func wellView(_ view: WellView, didReceive media: LoadedMedia)
+    func wellViewDidDoubleClick(_ view: WellView)
 }
 
-/// The titular control: a recessed well that accepts image drags and pastes.
-final class ImageWellView: NSView, NSUserInterfaceValidations {
-    weak var delegate: ImageWellViewDelegate?
+/// The titular control: a recessed well that accepts media drags and pastes.
+final class WellView: NSView, NSUserInterfaceValidations {
+    weak var delegate: WellViewDelegate?
 
     var image: NSImage? {
+        didSet { needsDisplay = true }
+    }
+
+    var placeholder = "Drop or paste an image" {
         didSet { needsDisplay = true }
     }
 
@@ -31,7 +35,7 @@ final class ImageWellView: NSView, NSUserInterfaceValidations {
         registerForDraggedTypes(types)
         setAccessibilityElement(true)
         setAccessibilityRole(.image)
-        setAccessibilityLabel("Image well")
+        setAccessibilityLabel("Media well")
     }
 
     required init?(coder: NSCoder) {
@@ -79,7 +83,6 @@ final class ImageWellView: NSView, NSUserInterfaceValidations {
                        hints: [.interpolation: NSImageInterpolation.high.rawValue])
             NSGraphicsContext.restoreGraphicsState()
         } else {
-            let placeholder = "Drop or paste an image"
             let attributes: [NSAttributedString.Key: Any] = [
                 .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
                 .foregroundColor: NSColor.secondaryLabelColor,
@@ -118,7 +121,7 @@ final class ImageWellView: NSView, NSUserInterfaceValidations {
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
         if event.clickCount == 2 {
-            delegate?.imageWellViewDidDoubleClick(self)
+            delegate?.wellViewDidDoubleClick(self)
         }
     }
 
@@ -131,8 +134,8 @@ final class ImageWellView: NSView, NSUserInterfaceValidations {
     // MARK: Paste
 
     @objc func paste(_ sender: Any?) {
-        if let loaded = ImageLoader.load(fromPasteboard: .general) {
-            delegate?.imageWellView(self, didReceive: loaded)
+        if let media = MediaLoader.load(fromPasteboard: .general) {
+            delegate?.wellView(self, didReceive: media)
         } else {
             NSSound.beep()
         }
@@ -140,17 +143,17 @@ final class ImageWellView: NSView, NSUserInterfaceValidations {
 
     func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
         if item.action == #selector(paste(_:)) {
-            return ImageLoader.canLoad(fromPasteboard: .general)
+            return MediaLoader.canLoad(fromPasteboard: .general)
         }
         return responds(to: item.action)
     }
 
     // MARK: Dragging
 
-    private func pasteboardHasImage(_ pasteboard: NSPasteboard) -> Bool {
+    private func pasteboardHasMedia(_ pasteboard: NSPasteboard) -> Bool {
         if pasteboard.canReadObject(forClasses: [NSURL.self], options: [
             .urlReadingFileURLsOnly: true,
-            .urlReadingContentsConformToTypes: [UTType.image.identifier],
+            .urlReadingContentsConformToTypes: MediaLoader.acceptedTypes.map(\.identifier),
         ]) { return true }
         if pasteboard.canReadObject(forClasses: [NSImage.self], options: [:]) { return true }
         if pasteboard.canReadObject(forClasses: [NSFilePromiseReceiver.self], options: [:]) { return true }
@@ -158,7 +161,7 @@ final class ImageWellView: NSView, NSUserInterfaceValidations {
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard pasteboardHasImage(sender.draggingPasteboard) else { return [] }
+        guard pasteboardHasMedia(sender.draggingPasteboard) else { return [] }
         isDragTarget = true
         return .copy
     }
@@ -175,8 +178,8 @@ final class ImageWellView: NSView, NSUserInterfaceValidations {
         isDragTarget = false
         let pasteboard = sender.draggingPasteboard
 
-        if let loaded = ImageLoader.load(fromPasteboard: pasteboard) {
-            delegate?.imageWellView(self, didReceive: loaded)
+        if let media = MediaLoader.load(fromPasteboard: pasteboard) {
+            delegate?.wellView(self, didReceive: media)
             return true
         }
 
@@ -193,8 +196,8 @@ final class ImageWellView: NSView, NSUserInterfaceValidations {
                                           operationQueue: promiseQueue) { url, error in
                 DispatchQueue.main.async { [weak self] in
                     guard let self, error == nil,
-                          let loaded = ImageLoader.load(from: url) else { return }
-                    self.delegate?.imageWellView(self, didReceive: loaded)
+                          let media = MediaLoader.load(from: url) else { return }
+                    self.delegate?.wellView(self, didReceive: media)
                 }
             }
             return true

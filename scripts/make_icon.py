@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generates the ImageWell app icon: a classic Aqua-style image well (recessed,
+"""Generates the AllsWell app icon: a classic Aqua-style image well (recessed,
 bordered, rounded rect on the modern macOS icon grid) containing a generic
 image-file icon. Writes all AppIcon.appiconset PNGs plus Contents.json.
 
@@ -18,7 +18,7 @@ RADIUS = 185               # ~22.4% of the 824px artwork, matches system icons
 BOX = (MARGIN, MARGIN, S - MARGIN, S - MARGIN)
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..",
-                       "ImageWell", "Assets.xcassets", "AppIcon.appiconset")
+                       "AllsWell", "Assets.xcassets", "AppIcon.appiconset")
 
 
 def rounded_mask(box, radius, blur=0):

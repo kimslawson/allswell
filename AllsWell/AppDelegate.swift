@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func buildMainMenu() {
-        let appName = "ImageWell"
+        let appName = "AllsWell"
         let mainMenu = NSMenu()
 
         let appItem = NSMenuItem()

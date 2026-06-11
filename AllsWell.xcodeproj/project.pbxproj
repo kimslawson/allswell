@@ -11,8 +11,9 @@
 		AB0000000000000000000102 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000002 /* AppDelegate.swift */; };
 		AB0000000000000000000103 /* MainWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000003 /* MainWindowController.swift */; };
 		AB0000000000000000000104 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000004 /* MainViewController.swift */; };
-		AB0000000000000000000105 /* ImageWellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000005 /* ImageWellView.swift */; };
-		AB0000000000000000000106 /* ImageSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000006 /* ImageSupport.swift */; };
+		AB0000000000000000000105 /* WellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000005 /* WellView.swift */; };
+		AB0000000000000000000106 /* Converter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000006 /* Converter.swift */; };
+		AB0000000000000000000108 /* ImageConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000000000000000000000A /* ImageConverter.swift */; };
 		AB0000000000000000000107 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000008 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -21,11 +22,12 @@
 		AB0000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		AB0000000000000000000003 /* MainWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowController.swift; sourceTree = "<group>"; };
 		AB0000000000000000000004 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
-		AB0000000000000000000005 /* ImageWellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageWellView.swift; sourceTree = "<group>"; };
-		AB0000000000000000000006 /* ImageSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageSupport.swift; sourceTree = "<group>"; };
+		AB0000000000000000000005 /* WellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WellView.swift; sourceTree = "<group>"; };
+		AB0000000000000000000006 /* Converter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Converter.swift; sourceTree = "<group>"; };
+		AB000000000000000000000A /* ImageConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageConverter.swift; sourceTree = "<group>"; };
 		AB0000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AB0000000000000000000008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		AB0000000000000000000009 /* ImageWell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageWell.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AB0000000000000000000009 /* AllsWell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AllsWell.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -42,30 +44,31 @@
 		AB0000000000000000000301 = {
 			isa = PBXGroup;
 			children = (
-				AB0000000000000000000302 /* ImageWell */,
+				AB0000000000000000000302 /* AllsWell */,
 				AB0000000000000000000303 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		AB0000000000000000000302 /* ImageWell */ = {
+		AB0000000000000000000302 /* AllsWell */ = {
 			isa = PBXGroup;
 			children = (
 				AB0000000000000000000001 /* main.swift */,
 				AB0000000000000000000002 /* AppDelegate.swift */,
 				AB0000000000000000000003 /* MainWindowController.swift */,
 				AB0000000000000000000004 /* MainViewController.swift */,
-				AB0000000000000000000005 /* ImageWellView.swift */,
-				AB0000000000000000000006 /* ImageSupport.swift */,
+				AB0000000000000000000005 /* WellView.swift */,
+				AB0000000000000000000006 /* Converter.swift */,
+				AB000000000000000000000A /* ImageConverter.swift */,
 				AB0000000000000000000008 /* Assets.xcassets */,
 				AB0000000000000000000007 /* Info.plist */,
 			);
-			path = ImageWell;
+			path = AllsWell;
 			sourceTree = "<group>";
 		};
 		AB0000000000000000000303 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				AB0000000000000000000009 /* ImageWell.app */,
+				AB0000000000000000000009 /* AllsWell.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -73,9 +76,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		AB0000000000000000000401 /* ImageWell */ = {
+		AB0000000000000000000401 /* AllsWell */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = AB0000000000000000000504 /* Build configuration list for PBXNativeTarget "ImageWell" */;
+			buildConfigurationList = AB0000000000000000000504 /* Build configuration list for PBXNativeTarget "AllsWell" */;
 			buildPhases = (
 				AB0000000000000000000201 /* Sources */,
 				AB0000000000000000000202 /* Frameworks */,
@@ -85,9 +88,9 @@
 			);
 			dependencies = (
 			);
-			name = ImageWell;
-			productName = ImageWell;
-			productReference = AB0000000000000000000009 /* ImageWell.app */;
+			name = AllsWell;
+			productName = AllsWell;
+			productReference = AB0000000000000000000009 /* AllsWell.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -105,7 +108,7 @@
 					};
 				};
 			};
-			buildConfigurationList = AB0000000000000000000501 /* Build configuration list for PBXProject "ImageWell" */;
+			buildConfigurationList = AB0000000000000000000501 /* Build configuration list for PBXProject "AllsWell" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -118,7 +121,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				AB0000000000000000000401 /* ImageWell */,
+				AB0000000000000000000401 /* AllsWell */,
 			);
 		};
 /* End PBXProject section */
@@ -143,8 +146,9 @@
 				AB0000000000000000000102 /* AppDelegate.swift in Sources */,
 				AB0000000000000000000103 /* MainWindowController.swift in Sources */,
 				AB0000000000000000000104 /* MainViewController.swift in Sources */,
-				AB0000000000000000000105 /* ImageWellView.swift in Sources */,
-				AB0000000000000000000106 /* ImageSupport.swift in Sources */,
+				AB0000000000000000000105 /* WellView.swift in Sources */,
+				AB0000000000000000000106 /* Converter.swift in Sources */,
+				AB0000000000000000000108 /* ImageConverter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -255,13 +259,13 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ImageWell/Info.plist;
+				INFOPLIST_FILE = AllsWell/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kimslawson.ImageWell;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kimslawson.AllsWell;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 			};
@@ -276,13 +280,13 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = ImageWell/Info.plist;
+				INFOPLIST_FILE = AllsWell/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.kimslawson.ImageWell;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kimslawson.AllsWell;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 			};
@@ -291,7 +295,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		AB0000000000000000000501 /* Build configuration list for PBXProject "ImageWell" */ = {
+		AB0000000000000000000501 /* Build configuration list for PBXProject "AllsWell" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AB0000000000000000000502 /* Debug */,
@@ -300,7 +304,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		AB0000000000000000000504 /* Build configuration list for PBXNativeTarget "ImageWell" */ = {
+		AB0000000000000000000504 /* Build configuration list for PBXNativeTarget "AllsWell" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AB0000000000000000000505 /* Debug */,

@@ -2,17 +2,8 @@ import AppKit
 import ImageIO
 import UniformTypeIdentifiers
 
-enum ImageFormat: Int, CaseIterable {
-    case png = 0
-    case jpg = 1
-
-    var title: String { self == .png ? "PNG" : "JPG" }
-    var fileExtension: String { self == .png ? "png" : "jpg" }
-}
-
 struct LoadedImage {
     let cgImage: CGImage
-    let suggestedName: String
     let sourceWasHEIC: Bool
 
     var displayImage: NSImage {
@@ -24,19 +15,12 @@ enum ImageLoader {
     static func load(from url: URL) -> LoadedImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let cgImage = image(from: source) else { return nil }
-        return LoadedImage(cgImage: cgImage,
-                           suggestedName: url.deletingPathExtension().lastPathComponent,
-                           sourceWasHEIC: sourceIsHEIC(source))
+        return LoadedImage(cgImage: cgImage, sourceWasHEIC: sourceIsHEIC(source))
     }
 
-    static func load(fromPasteboard pasteboard: NSPasteboard) -> LoadedImage? {
-        if let urls = pasteboard.readObjects(forClasses: [NSURL.self],
-                                             options: [.urlReadingFileURLsOnly: true]) as? [URL] {
-            for url in urls {
-                if let loaded = load(from: url) { return loaded }
-            }
-        }
-
+    /// Bare image data on the pasteboard (no file URL): screenshots,
+    /// copy-image from browsers, and the like.
+    static func load(fromPasteboardData pasteboard: NSPasteboard) -> LoadedImage? {
         let dataTypes: [NSPasteboard.PasteboardType] = [
             .png, .tiff,
             NSPasteboard.PasteboardType("public.jpeg"),
@@ -50,32 +34,16 @@ enum ImageLoader {
            let data = pasteboard.data(forType: type),
            let source = CGImageSourceCreateWithData(data as CFData, nil),
            let cgImage = image(from: source) {
-            return LoadedImage(cgImage: cgImage,
-                               suggestedName: timestampName(),
-                               sourceWasHEIC: sourceIsHEIC(source))
+            return LoadedImage(cgImage: cgImage, sourceWasHEIC: sourceIsHEIC(source))
         }
 
         // Last resort: anything NSImage can make sense of.
         if let images = pasteboard.readObjects(forClasses: [NSImage.self]) as? [NSImage],
            let nsImage = images.first,
            let cgImage = nsImage.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-            return LoadedImage(cgImage: cgImage, suggestedName: timestampName(), sourceWasHEIC: false)
+            return LoadedImage(cgImage: cgImage, sourceWasHEIC: false)
         }
         return nil
-    }
-
-    static func canLoad(fromPasteboard pasteboard: NSPasteboard) -> Bool {
-        if pasteboard.canReadObject(forClasses: [NSURL.self], options: [
-            .urlReadingFileURLsOnly: true,
-            .urlReadingContentsConformToTypes: [UTType.image.identifier],
-        ]) { return true }
-        return pasteboard.canReadObject(forClasses: [NSImage.self], options: [:])
-    }
-
-    private static func timestampName() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd 'at' HH.mm.ss"
-        return "Image \(formatter.string(from: Date()))"
     }
 
     private static func sourceIsHEIC(_ source: CGImageSource) -> Bool {
@@ -144,48 +112,59 @@ enum ImageLoader {
     }
 }
 
-enum ImageExporter {
-    struct ExportError: LocalizedError {
-        let message: String
-        var errorDescription: String? { message }
-    }
+/// The original ImageWell backend: ImageIO/AppKit encoding to PNG or JPG.
+final class ImageIOConverter: Converter {
+    static let png = OutputFormat(id: "png", title: "PNG", fileExtension: "png")
+    static let jpg = OutputFormat(id: "jpg", title: "JPG", fileExtension: "jpg")
 
     static let jpegQuality: Double = 0.9
 
-    /// Writes the image and returns the URL it landed at. If `replacing` points at a
-    /// previous auto-save of the same image, that file is moved to the Trash first,
-    /// so editing the name/format/destination behaves like a rename rather than
-    /// littering copies.
-    static func export(_ cgImage: CGImage,
-                       to directory: URL,
-                       name: String,
-                       format: ImageFormat,
-                       replacing previous: URL?) throws -> URL {
-        let data = try encode(cgImage, format: format)
-        let proposed = directory
-            .appendingPathComponent(sanitize(name))
-            .appendingPathExtension(format.fileExtension)
-
-        let fileManager = FileManager.default
-        if let previous, previous != proposed, fileManager.fileExists(atPath: previous.path) {
-            try? fileManager.trashItem(at: previous, resultingItemURL: nil)
-        }
-        let url = (previous == proposed) ? proposed : uniqueURL(for: proposed)
-        try data.write(to: url, options: .atomic)
-        return url
+    func outputFormats(for mediaClass: MediaClass) -> [OutputFormat] {
+        mediaClass == .image ? [Self.png, Self.jpg] : []
     }
 
-    private static func encode(_ cgImage: CGImage, format: ImageFormat) throws -> Data {
+    func canConvert(_ media: LoadedMedia, to format: OutputFormat) -> Bool {
+        guard case .image = media.payload else { return false }
+        return outputFormats(for: .image).contains(format)
+    }
+
+    @discardableResult
+    func convert(_ media: LoadedMedia,
+                 to format: OutputFormat,
+                 destination: URL,
+                 progress: @escaping (Double) -> Void,
+                 completion: @escaping (Result<Void, Error>) -> Void) -> ConversionTask {
+        let task = BasicConversionTask()
+        guard case .image(let loaded) = media.payload else {
+            DispatchQueue.main.async { completion(.failure(ConversionError.unsupported)) }
+            return task
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result: Result<Void, Error>
+            do {
+                if task.isCancelled { throw ConversionError.cancelled }
+                let data = try Self.encode(loaded.cgImage, format: format)
+                try data.write(to: destination, options: .atomic)
+                result = .success(())
+            } catch {
+                result = .failure(error)
+            }
+            DispatchQueue.main.async { completion(result) }
+        }
+        return task
+    }
+
+    private static func encode(_ cgImage: CGImage, format: OutputFormat) throws -> Data {
         var image = cgImage
-        if format == .jpg && hasAlpha(cgImage) {
+        if format == jpg && hasAlpha(cgImage) {
             image = flattenedOntoWhite(cgImage) ?? cgImage
         }
         let rep = NSBitmapImageRep(cgImage: image)
-        let fileType: NSBitmapImageRep.FileType = (format == .jpg) ? .jpeg : .png
+        let fileType: NSBitmapImageRep.FileType = (format == jpg) ? .jpeg : .png
         let properties: [NSBitmapImageRep.PropertyKey: Any] =
-            (format == .jpg) ? [.compressionFactor: jpegQuality] : [:]
+            (format == jpg) ? [.compressionFactor: jpegQuality] : [:]
         guard let data = rep.representation(using: fileType, properties: properties) else {
-            throw ExportError(message: "Could not encode the image as \(format.title).")
+            throw ConversionError.failed("Could not encode the image as \(format.title).")
         }
         return data
     }
@@ -213,28 +192,5 @@ enum ImageExporter {
         context.fill(rect)
         context.draw(image, in: rect)
         return context.makeImage()
-    }
-
-    private static func sanitize(_ name: String) -> String {
-        var cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        cleaned = cleaned.replacingOccurrences(of: "/", with: "-")
-        cleaned = cleaned.replacingOccurrences(of: ":", with: "-")
-        return cleaned.isEmpty ? "Image" : cleaned
-    }
-
-    private static func uniqueURL(for url: URL) -> URL {
-        let fileManager = FileManager.default
-        guard fileManager.fileExists(atPath: url.path) else { return url }
-        let base = url.deletingPathExtension().lastPathComponent
-        let ext = url.pathExtension
-        let directory = url.deletingLastPathComponent()
-        var counter = 2
-        while true {
-            let candidate = directory
-                .appendingPathComponent("\(base) \(counter)")
-                .appendingPathExtension(ext)
-            if !fileManager.fileExists(atPath: candidate.path) { return candidate }
-            counter += 1
-        }
     }
 }

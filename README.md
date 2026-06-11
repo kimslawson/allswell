@@ -3,7 +3,9 @@
 A one-trick Mac utility: an image well. Drop or paste an image into it and it
 is immediately saved out as PNG or JPG to the folder of your choice.
 
-![App icon](ImageWell/Assets.xcassets/AppIcon.appiconset/icon_256.png)
+| ![App icon](ImageWell/Assets.xcassets/AppIcon.appiconset/icon_256.png) | ![The ImageWell window](docs/screenshot.png) |
+|:---:|:---:|
+| Drag image to app icon in dock | or to the image well |
 
 ## Behavior
 

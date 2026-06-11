@@ -46,7 +46,7 @@ final class MainViewController: NSViewController, ImageWellViewDelegate {
     }
 
     override func loadView() {
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 440, height: 300))
+        view = NSView(frame: NSRect(x: 0, y: 0, width: 380, height: 420))
 
         imageWell.delegate = self
         view.addSubview(imageWell)
@@ -99,7 +99,6 @@ final class MainViewController: NSViewController, ImageWellViewDelegate {
         view.window?.makeFirstResponder(imageWell)
     }
 
-    // Fields sit beside the well when the window is wide, below it when tall.
     override func viewDidLayout() {
         super.viewDidLayout()
         let bounds = view.bounds
@@ -107,34 +106,20 @@ final class MainViewController: NSViewController, ImageWellViewDelegate {
         let gap: CGFloat = 8
         let rowHeight: CGFloat = 22
 
-        if bounds.width > bounds.height {
-            let columnWidth = max(150, min(210, bounds.width * 0.4))
-            let columnX = bounds.maxX - pad - columnWidth
-            var y = bounds.maxY - pad - rowHeight
-            nameField.frame = NSRect(x: columnX, y: y, width: columnWidth, height: rowHeight)
-            y -= rowHeight + gap
-            formatPopup.frame = NSRect(x: columnX, y: y, width: columnWidth, height: rowHeight)
-            y -= rowHeight + gap
-            destinationButton.frame = NSRect(x: columnX, y: y, width: columnWidth, height: rowHeight)
-            imageWell.frame = NSRect(x: pad, y: pad,
-                                     width: columnX - gap - pad,
-                                     height: bounds.height - 2 * pad)
-        } else {
-            let bottomRowY = pad
-            let nameRowY = bottomRowY + rowHeight + gap
-            nameField.frame = NSRect(x: pad, y: nameRowY,
-                                     width: bounds.width - 2 * pad, height: rowHeight)
-            let formatWidth: CGFloat = 74
-            formatPopup.frame = NSRect(x: pad, y: bottomRowY,
-                                       width: formatWidth, height: rowHeight)
-            destinationButton.frame = NSRect(x: pad + formatWidth + gap, y: bottomRowY,
-                                             width: bounds.width - 2 * pad - formatWidth - gap,
-                                             height: rowHeight)
-            let wellY = nameRowY + rowHeight + gap
-            imageWell.frame = NSRect(x: pad, y: wellY,
-                                     width: bounds.width - 2 * pad,
-                                     height: bounds.maxY - pad - wellY)
-        }
+        let bottomRowY = pad
+        let nameRowY = bottomRowY + rowHeight + gap
+        nameField.frame = NSRect(x: pad, y: nameRowY,
+                                 width: bounds.width - 2 * pad, height: rowHeight)
+        let formatWidth: CGFloat = 74
+        formatPopup.frame = NSRect(x: pad, y: bottomRowY,
+                                   width: formatWidth, height: rowHeight)
+        destinationButton.frame = NSRect(x: pad + formatWidth + gap, y: bottomRowY,
+                                         width: bounds.width - 2 * pad - formatWidth - gap,
+                                         height: rowHeight)
+        let wellY = nameRowY + rowHeight + gap
+        imageWell.frame = NSRect(x: pad, y: wellY,
+                                 width: bounds.width - 2 * pad,
+                                 height: bounds.maxY - pad - wellY)
     }
 
     // MARK: Intake

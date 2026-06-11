@@ -27,8 +27,8 @@ is immediately saved out as PNG or JPG to the folder of your choice.
   you picked (and the last format) across launches.
 
 The window is a utility panel — narrow titlebar, small traffic lights, small
-title. Resize it wide and the fields sit beside the well; resize it tall and
-they sit below.
+title. The filename, format, and destination controls live in a compact strip
+under the well.
 
 No dependencies. AppKit + ImageIO only.
 

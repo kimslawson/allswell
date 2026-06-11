@@ -11,7 +11,7 @@ final class MainPanel: NSPanel {
 final class MainWindowController: NSWindowController {
     convenience init() {
         let panel = MainPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 300),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 420),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .utilityWindow],
             backing: .buffered,
             defer: false)

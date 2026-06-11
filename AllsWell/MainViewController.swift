@@ -186,6 +186,9 @@ final class MainViewController: NSViewController, WellViewDelegate {
                                  accessibilityDescription: mediaClass.rawValue)
             icon.contentTintColor = .secondaryLabelColor
             icon.imageScaling = .scaleProportionallyDown
+            // Hug the popup: narrow glyphs (music note) otherwise float in
+            // their frame and look detached from their picker.
+            icon.imageAlignment = .alignRight
             view.addSubview(icon)
             classIcons[mediaClass] = icon
         }
@@ -252,7 +255,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
         let bounds = view.bounds
         let pad: CGFloat = 10
         let rowHeight: CGFloat = 22
-        let labelWidth: CGFloat = 80
+        let labelWidth: CGFloat = 66
 
         let destRowY = pad
         let convertRowY = destRowY + rowHeight + 8
@@ -269,8 +272,10 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
         convertLabel.frame = NSRect(x: pad, y: convertRowY + 3, width: labelWidth, height: 16)
         // Fixed slots, never moving: image, audio, video — muscle memory.
+        // Stride = icon (16) + gap (2) + popup (74) + slot gap (7), so each
+        // glyph sits visibly closer to its own picker than to its neighbor.
         for (index, mediaClass) in Self.orderedClasses.enumerated() {
-            let iconX = pad + labelWidth + 4 + CGFloat(index) * 88
+            let iconX = pad + labelWidth + 4 + CGFloat(index) * 99
             classIcons[mediaClass]?.frame = NSRect(x: iconX, y: convertRowY + 3,
                                                    width: 16, height: 16)
             classPopups[mediaClass]?.frame = NSRect(x: iconX + 18, y: convertRowY,

@@ -119,17 +119,22 @@ final class ConverterRegistry {
 /// Classifies incoming files and builds `LoadedMedia` for them.
 enum MediaLoader {
     /// UTTypes the app accepts, in any intake path (drag, paste, Dock).
+    /// Folders are accepted too and expanded one level deep at load.
     static var acceptedTypes: [UTType] { [.image, .movie, .audio] }
+
+    static var acceptedDragTypes: [UTType] { acceptedTypes + [.folder] }
 
     static func load(from url: URL) -> LoadedMedia? {
         guard let type = contentType(of: url) else { return nil }
         let suggestedName = url.deletingPathExtension().lastPathComponent
         if type.conforms(to: .image) {
-            guard let loaded = ImageLoader.load(from: url) else { return nil }
-            return LoadedMedia(payload: .image(loaded),
+            // Pixels are decoded lazily at convert/preview time, so dropping
+            // a folder of hundreds of images stays instant.
+            let isHEIC = type.conforms(to: .heic) || type.conforms(to: .heif)
+            return LoadedMedia(payload: .file(url),
                                mediaClass: .image,
                                suggestedName: suggestedName,
-                               preferredFormatID: loaded.sourceWasHEIC ? "jpg" : nil)
+                               preferredFormatID: isHEIC ? "jpg" : nil)
         }
         if type.conforms(to: .movie) {
             // The HEIC grudge, generalized: hostile containers default the
@@ -150,27 +155,53 @@ enum MediaLoader {
         return nil
     }
 
-    static func load(fromPasteboard pasteboard: NSPasteboard) -> LoadedMedia? {
+    /// Expands folders (top level only — no recursion, so an accidental drop
+    /// of a giant tree can't queue thousands of files) and classifies
+    /// everything supported, in stable Finder-like name order.
+    static func loadBatch(from urls: [URL]) -> [LoadedMedia] {
+        var batch: [LoadedMedia] = []
+        for url in urls {
+            let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?
+                .isDirectory ?? false
+            if isDirectory {
+                let children = ((try? FileManager.default.contentsOfDirectory(
+                    at: url,
+                    includingPropertiesForKeys: [.contentTypeKey, .isDirectoryKey],
+                    options: [.skipsHiddenFiles])) ?? [])
+                    .sorted {
+                        $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent)
+                            == .orderedAscending
+                    }
+                for child in children {
+                    if let media = load(from: child) { batch.append(media) }
+                }
+            } else if let media = load(from: url) {
+                batch.append(media)
+            }
+        }
+        return batch
+    }
+
+    static func loadBatch(fromPasteboard pasteboard: NSPasteboard) -> [LoadedMedia] {
         if let urls = pasteboard.readObjects(forClasses: [NSURL.self],
                                              options: [.urlReadingFileURLsOnly: true]) as? [URL] {
-            for url in urls {
-                if let loaded = load(from: url) { return loaded }
-            }
+            let batch = loadBatch(from: urls)
+            if !batch.isEmpty { return batch }
         }
         // Bare image data (screenshots, copy-image from browsers).
         if let loaded = ImageLoader.load(fromPasteboardData: pasteboard) {
-            return LoadedMedia(payload: .image(loaded),
-                               mediaClass: .image,
-                               suggestedName: timestampName(),
-                               preferredFormatID: loaded.sourceWasHEIC ? "jpg" : nil)
+            return [LoadedMedia(payload: .image(loaded),
+                                mediaClass: .image,
+                                suggestedName: timestampName(),
+                                preferredFormatID: loaded.sourceWasHEIC ? "jpg" : nil)]
         }
-        return nil
+        return []
     }
 
     static func canLoad(fromPasteboard pasteboard: NSPasteboard) -> Bool {
         if pasteboard.canReadObject(forClasses: [NSURL.self], options: [
             .urlReadingFileURLsOnly: true,
-            .urlReadingContentsConformToTypes: acceptedTypes.map(\.identifier),
+            .urlReadingContentsConformToTypes: acceptedDragTypes.map(\.identifier),
         ]) { return true }
         return pasteboard.canReadObject(forClasses: [NSImage.self], options: [:])
     }

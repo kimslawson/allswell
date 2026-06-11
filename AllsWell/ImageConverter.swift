@@ -18,6 +18,18 @@ enum ImageLoader {
         return LoadedImage(cgImage: cgImage, sourceWasHEIC: sourceIsHEIC(source))
     }
 
+    /// A cheap, orientation-corrected preview for the well — the full bitmap
+    /// is only ever decoded inside the converter.
+    static func thumbnail(from url: URL, maxPixel: Int = 1024) -> CGImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+        ]
+        return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    }
+
     /// Bare image data on the pasteboard (no file URL): screenshots,
     /// copy-image from browsers, and the like.
     static func load(fromPasteboardData pasteboard: NSPasteboard) -> LoadedImage? {
@@ -124,8 +136,7 @@ final class ImageIOConverter: Converter {
     }
 
     func canConvert(_ media: LoadedMedia, to format: OutputFormat) -> Bool {
-        guard case .image = media.payload else { return false }
-        return outputFormats(for: .image).contains(format)
+        media.mediaClass == .image && outputFormats(for: .image).contains(format)
     }
 
     @discardableResult
@@ -135,15 +146,21 @@ final class ImageIOConverter: Converter {
                  progress: @escaping (Double) -> Void,
                  completion: @escaping (Result<Void, Error>) -> Void) -> ConversionTask {
         let task = BasicConversionTask()
-        guard case .image(let loaded) = media.payload else {
-            DispatchQueue.main.async { completion(.failure(ConversionError.unsupported)) }
-            return task
-        }
         DispatchQueue.global(qos: .userInitiated).async {
             let result: Result<Void, Error>
             do {
                 if task.isCancelled { throw ConversionError.cancelled }
-                let data = try Self.encode(loaded.cgImage, format: format)
+                let cgImage: CGImage
+                switch media.payload {
+                case .image(let loaded):
+                    cgImage = loaded.cgImage
+                case .file(let url):
+                    guard let loaded = ImageLoader.load(from: url) else {
+                        throw ConversionError.failed("Could not read the image.")
+                    }
+                    cgImage = loaded.cgImage
+                }
+                let data = try Self.encode(cgImage, format: format)
                 try data.write(to: destination, options: .atomic)
                 result = .success(())
             } catch {

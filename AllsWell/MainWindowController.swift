@@ -11,7 +11,7 @@ final class MainPanel: NSPanel {
 final class MainWindowController: NSWindowController {
     convenience init() {
         let panel = MainPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 420),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 450),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .utilityWindow],
             backing: .buffered,
             defer: false)
@@ -19,14 +19,14 @@ final class MainWindowController: NSWindowController {
         panel.isFloatingPanel = false
         panel.hidesOnDeactivate = false
         panel.isReleasedWhenClosed = false
-        panel.minSize = NSSize(width: 300, height: 240)
+        panel.minSize = NSSize(width: 380, height: 300)
         panel.center()
         self.init(window: panel)
         contentViewController = MainViewController()
         panel.setFrameAutosaveName("AllsWellMainWindow")
     }
 
-    func ingest(_ url: URL) {
-        (contentViewController as? MainViewController)?.ingest(url)
+    func ingest(_ urls: [URL]) {
+        (contentViewController as? MainViewController)?.ingest(urls)
     }
 }

@@ -26,6 +26,17 @@ AVFoundation, and (optionally) ffmpeg backends behind it.
 - **Drop or paste.** Drag a file (or raw image data) into the well, or focus
   the well and ⌘V. Dropping a file on the Dock icon works too, even when the
   window is closed.
+- **Batches are just fatter drops.** Drop several files — or a folder (top
+  level only, no recursion) — and everything supported converts through a
+  serial queue. The format pickers show only the media classes present, in
+  fixed slots that never move; changing a picker re-converts just that
+  class's files. Files already in the target format are skipped ("Saved 3 ·
+  497 skipped"), failures don't stop the queue, and originals are never
+  touched. The filename row becomes a summary ("14 images · 3 songs · 2
+  movies"); files keep their own names.
+- **In place.** A checkbox switches output from the chosen folder to
+  next-to-the-original, handy for batch drops; the folder picker blanks out
+  while it's on.
 - **Auto-save.** The moment something lands, it is converted and written to
   the current destination using the current filename and format. A small toast
   confirms where it went. Conversions that take more than a beat show a thin
@@ -60,8 +71,8 @@ AVFoundation, and (optionally) ffmpeg backends behind it.
   you picked (and the last format per media class) across launches.
 
 The window is a utility panel — narrow titlebar, small traffic lights, small
-title. The filename, format, and destination controls live in a compact strip
-under the well.
+title. The filename, per-class format pickers, and destination controls live
+in a compact strip under the well.
 
 No dependencies. AppKit + ImageIO + AVFoundation only (ffmpeg strictly
 optional, never bundled).

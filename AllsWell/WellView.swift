@@ -2,7 +2,7 @@ import AppKit
 import UniformTypeIdentifiers
 
 protocol WellViewDelegate: AnyObject {
-    func wellView(_ view: WellView, didReceive media: LoadedMedia)
+    func wellView(_ view: WellView, didReceive batch: [LoadedMedia])
     func wellViewDidDoubleClick(_ view: WellView)
 }
 
@@ -134,8 +134,9 @@ final class WellView: NSView, NSUserInterfaceValidations {
     // MARK: Paste
 
     @objc func paste(_ sender: Any?) {
-        if let media = MediaLoader.load(fromPasteboard: .general) {
-            delegate?.wellView(self, didReceive: media)
+        let batch = MediaLoader.loadBatch(fromPasteboard: .general)
+        if !batch.isEmpty {
+            delegate?.wellView(self, didReceive: batch)
         } else {
             NSSound.beep()
         }
@@ -153,7 +154,7 @@ final class WellView: NSView, NSUserInterfaceValidations {
     private func pasteboardHasMedia(_ pasteboard: NSPasteboard) -> Bool {
         if pasteboard.canReadObject(forClasses: [NSURL.self], options: [
             .urlReadingFileURLsOnly: true,
-            .urlReadingContentsConformToTypes: MediaLoader.acceptedTypes.map(\.identifier),
+            .urlReadingContentsConformToTypes: MediaLoader.acceptedDragTypes.map(\.identifier),
         ]) { return true }
         if pasteboard.canReadObject(forClasses: [NSImage.self], options: [:]) { return true }
         if pasteboard.canReadObject(forClasses: [NSFilePromiseReceiver.self], options: [:]) { return true }
@@ -178,8 +179,9 @@ final class WellView: NSView, NSUserInterfaceValidations {
         isDragTarget = false
         let pasteboard = sender.draggingPasteboard
 
-        if let media = MediaLoader.load(fromPasteboard: pasteboard) {
-            delegate?.wellView(self, didReceive: media)
+        let batch = MediaLoader.loadBatch(fromPasteboard: pasteboard)
+        if !batch.isEmpty {
+            delegate?.wellView(self, didReceive: batch)
             return true
         }
 
@@ -197,7 +199,7 @@ final class WellView: NSView, NSUserInterfaceValidations {
                 DispatchQueue.main.async { [weak self] in
                     guard let self, error == nil,
                           let media = MediaLoader.load(from: url) else { return }
-                    self.delegate?.wellView(self, didReceive: media)
+                    self.delegate?.wellView(self, didReceive: [media])
                 }
             }
             return true

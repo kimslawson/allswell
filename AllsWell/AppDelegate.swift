@@ -13,18 +13,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         windowController = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
-        for url in pendingURLs { controller.ingest(url) }
+        if !pendingURLs.isEmpty { controller.ingest(pendingURLs) }
         pendingURLs.removeAll()
     }
 
-    // Files dropped on the Dock icon (or opened with the app) land here.
+    // Files (or folders) dropped on the Dock icon land here, possibly many.
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let controller = windowController else {
             pendingURLs.append(contentsOf: urls)
             return
         }
         controller.showWindow(nil)
-        if let url = urls.first { controller.ingest(url) }
+        controller.ingest(urls)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

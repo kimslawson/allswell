@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Generates the AllsWell app icon: a classic Aqua-style image well (recessed,
-bordered, rounded rect on the modern macOS icon grid) containing a generic
-image-file icon. Writes all AppIcon.appiconset PNGs plus Contents.json.
+bordered, rounded rect on the modern macOS icon grid) holding three documents
+side by side — audio, image, video — with the outer two clipped by the well's
+edges. Writes all AppIcon.appiconset PNGs plus Contents.json.
 
 Usage: python3 scripts/make_icon.py
 Requires: pillow
@@ -71,82 +72,111 @@ def make_well():
     icon.paste(Image.new("RGBA", (S, S), (255, 255, 255, 255)), (0, 0),
                bottom_band.point(lambda v: int(v * 0.75)))
 
-    # The border that makes it legible as a well.
+    draw_border(icon)
+    return icon
+
+
+def draw_border(icon):
+    """The border that makes it legible as a well. Redrawn after the docs go
+    in, so their clipped edges sit cleanly under it."""
     draw = ImageDraw.Draw(icon)
     draw.rounded_rectangle(BOX, radius=RADIUS, outline=(125, 125, 132, 255),
                            width=13)
     inner = (BOX[0] + 13, BOX[1] + 13, BOX[2] - 13, BOX[3] - 13)
     draw.rounded_rectangle(inner, radius=RADIUS - 13,
                            outline=(90, 90, 98, 90), width=4)
+
+
+def draw_docs(icon, photo=None):
+    """Three dog-eared documents side by side — audio, image, video — with
+    the outer two running past the well's edges and clipped by them. With
+    `photo`, that image fills the center document instead of the abstract
+    sky/sun/hills artwork."""
+    overlay = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    cy = (S - 470) // 2 + 6 + 470 // 2
+    draw_doc(overlay, 186, cy, 0.80, "audio")
+    draw_doc(overlay, S - 186, cy, 0.80, "video")
+    draw_doc(overlay, S // 2, cy, 1.0, "image", photo=photo)
+
+    # Clip everything to the inside of the well border.
+    inner = (BOX[0] + 13, BOX[1] + 13, BOX[2] - 13, BOX[3] - 13)
+    clip = rounded_mask(inner, RADIUS - 13)
+    icon.paste(overlay, (0, 0), ImageChops.multiply(overlay.split()[3], clip))
+    draw_border(icon)
     return icon
 
 
-def draw_page(icon, photo=None):
-    """Generic image-file icon: white page, dog-eared corner, photo inside.
-    With `photo`, that image fills the photo area instead of the abstract
-    sky/sun/hills artwork."""
-    page_w, page_h, fold = 380, 470, 96
-    x0 = (S - page_w) // 2
-    y0 = (S - page_h) // 2 + 6
+def draw_doc(layer, cx, cy, scale, kind, photo=None):
+    """One white page with a dog-eared corner, centered at (cx, cy), holding
+    artwork for its media kind: waveform, photo, or filmstrip."""
+    page_w, page_h, fold = round(380 * scale), round(470 * scale), round(96 * scale)
+    x0, y0 = cx - page_w // 2, cy - page_h // 2
     x1, y1 = x0 + page_w, y0 + page_h
+    page = [(x0, y0), (x1 - fold, y0), (x1, y0 + fold), (x1, y1), (x0, y1)]
 
     # Soft drop shadow under the page, following the dog-eared outline.
     shadow = Image.new("L", (S, S), 0)
-    shadow_page = [(x, y + 12) for x, y in
-                   [(x0, y0), (x1 - fold, y0), (x1, y0 + fold),
-                    (x1, y1), (x0, y1)]]
-    ImageDraw.Draw(shadow).polygon(shadow_page, fill=255)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(16))
-    shadow = ImageChops.multiply(shadow, rounded_mask(BOX, RADIUS))
-    icon.paste(Image.new("RGBA", (S, S), (30, 30, 40, 255)), (0, 0),
-               shadow.point(lambda v: int(v * 0.30)))
+    ImageDraw.Draw(shadow).polygon([(x, y + round(12 * scale)) for x, y in page],
+                                   fill=255)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(16 * scale))
+    layer.paste(Image.new("RGBA", (S, S), (30, 30, 40, 255)), (0, 0),
+                shadow.point(lambda v: int(v * 0.30)))
 
-    draw = ImageDraw.Draw(icon)
-    page = [(x0, y0), (x1 - fold, y0), (x1, y0 + fold), (x1, y1), (x0, y1)]
+    draw = ImageDraw.Draw(layer)
     draw.polygon(page, fill=(255, 255, 255, 255), outline=(140, 140, 148, 255))
-    draw.line(page + [page[0]], fill=(140, 140, 148, 255), width=7, joint="curve")
+    draw.line(page + [page[0]], fill=(140, 140, 148, 255),
+              width=max(3, round(7 * scale)), joint="curve")
 
     # Dog-ear fold.
     draw.polygon([(x1 - fold, y0), (x1 - fold, y0 + fold), (x1, y0 + fold)],
                  fill=(216, 216, 222, 255), outline=(140, 140, 148, 255))
     draw.line([(x1 - fold, y0), (x1 - fold, y0 + fold), (x1, y0 + fold)],
-              fill=(140, 140, 148, 255), width=6, joint="curve")
+              fill=(140, 140, 148, 255), width=max(3, round(6 * scale)),
+              joint="curve")
 
-    # Photo area.
-    px0, py0 = x0 + 42, y0 + 130
-    px1, py1 = x1 - 42, y1 - 48
+    # Artwork area.
+    px0, py0 = x0 + round(42 * scale), y0 + round(130 * scale)
+    px1, py1 = x1 - round(42 * scale), y1 - round(48 * scale)
+    if kind == "audio":
+        draw_audio_art(layer, px0, py0, px1, py1)
+    elif kind == "video":
+        draw_video_art(layer, px0, py0, px1, py1, scale)
+    else:
+        draw_image_art(layer, px0, py0, px1, py1, scale, photo)
 
+
+def draw_image_art(layer, px0, py0, px1, py1, scale, photo=None):
+    """The original artwork: bordered photo of sky, sun, and hills — or
+    `photo` center-cropped into the frame."""
     if photo is not None:
-        # Center-crop the photo to the frame's aspect and drop it in.
         frame_w, frame_h = px1 - px0, py1 - py0
-        scale = max(frame_w / photo.width, frame_h / photo.height)
+        zoom = max(frame_w / photo.width, frame_h / photo.height)
         resized = photo.convert("RGB").resize(
-            (round(photo.width * scale), round(photo.height * scale)),
+            (round(photo.width * zoom), round(photo.height * zoom)),
             Image.LANCZOS)
         cx = (resized.width - frame_w) // 2
         cy = (resized.height - frame_h) // 2
-        icon.paste(resized.crop((cx, cy, cx + frame_w, cy + frame_h)),
-                   (px0, py0))
-        ImageDraw.Draw(icon).rectangle((px0, py0, px1, py1),
-                                       outline=(150, 150, 158, 255), width=5)
-        return icon
+        layer.paste(resized.crop((cx, cy, cx + frame_w, cy + frame_h)),
+                    (px0, py0))
+        ImageDraw.Draw(layer).rectangle((px0, py0, px1, py1),
+                                        outline=(150, 150, 158, 255),
+                                        width=max(2, round(5 * scale)))
+        return
 
-    # Abstract artwork: sky, sun, hills.
+    # Sky gradient.
     sky = Image.new("RGBA", (px1 - px0, py1 - py0))
+    sdraw = ImageDraw.Draw(sky)
     for y in range(sky.height):
         t = y / max(1, sky.height - 1)
-        sky.putpixel((0, y), (int(108 + t * 96), int(176 + t * 56),
-                              int(236 + t * 14), 255))
-    sky = sky.resize((px1 - px0, py1 - py0))
-    for y in range(sky.height):
-        c = sky.getpixel((0, y))
-        ImageDraw.Draw(sky).line([(0, y), (sky.width, y)], fill=c)
-    icon.paste(sky, (px0, py0))
+        sdraw.line([(0, y), (sky.width, y)],
+                   fill=(int(108 + t * 96), int(176 + t * 56),
+                         int(236 + t * 14), 255))
+    layer.paste(sky, (px0, py0))
 
-    pdraw = ImageDraw.Draw(icon)
+    pdraw = ImageDraw.Draw(layer)
     # Sun.
-    sun_r = 46
-    sun_c = (px1 - 78, py0 + 84)
+    sun_r = round(46 * scale)
+    sun_c = (px1 - round(78 * scale), py0 + round(84 * scale))
     pdraw.ellipse((sun_c[0] - sun_r, sun_c[1] - sun_r,
                    sun_c[0] + sun_r, sun_c[1] + sun_r),
                   fill=(255, 211, 75, 255))
@@ -160,10 +190,48 @@ def draw_page(icon, photo=None):
                    (px1 + 10, py1)], fill=(136, 188, 110, 255))
     photo_mask = Image.new("L", (S, S), 0)
     ImageDraw.Draw(photo_mask).rectangle((px0, py0, px1, py1), fill=255)
-    icon.paste(overlay, (0, 0), ImageChops.multiply(overlay.split()[3], photo_mask))
+    layer.paste(overlay, (0, 0), ImageChops.multiply(overlay.split()[3], photo_mask))
     # Photo border.
-    pdraw.rectangle((px0, py0, px1, py1), outline=(150, 150, 158, 255), width=5)
-    return icon
+    pdraw.rectangle((px0, py0, px1, py1), outline=(150, 150, 158, 255),
+                    width=max(2, round(5 * scale)))
+
+
+def draw_audio_art(layer, px0, py0, px1, py1):
+    """Waveform bars across the middle of the page."""
+    draw = ImageDraw.Draw(layer)
+    w, h = px1 - px0, py1 - py0
+    mid = py0 + h // 2
+    heights = [0.30, 0.55, 0.80, 0.46, 1.0, 0.64, 0.88, 0.42, 0.68, 0.32]
+    step = w / len(heights)
+    bar_w = max(2, round(step * 0.56))
+    for i, t in enumerate(heights):
+        bx = px0 + round(step * i + (step - bar_w) / 2)
+        bh = max(bar_w, round(h * 0.92 * t))
+        draw.rounded_rectangle((bx, mid - bh // 2, bx + bar_w, mid + bh // 2),
+                               radius=bar_w // 2, fill=(235, 122, 52, 255))
+
+
+def draw_video_art(layer, px0, py0, px1, py1, scale):
+    """Dark filmstrip frame with sprocket holes and a play triangle."""
+    draw = ImageDraw.Draw(layer)
+    w, h = px1 - px0, py1 - py0
+    draw.rounded_rectangle((px0, py0, px1, py1), radius=round(14 * scale),
+                           fill=(52, 58, 72, 255),
+                           outline=(150, 150, 158, 255),
+                           width=max(2, round(5 * scale)))
+    # Sprocket holes along the top and bottom edges.
+    hole_w, hole_h = max(2, round(w * 0.085)), max(2, round(h * 0.085))
+    for row_y in (py0 + round(hole_h * 0.8), py1 - round(hole_h * 1.8)):
+        for i in range(4):
+            hx = px0 + w * (i + 0.5) / 4 - hole_w / 2
+            draw.rounded_rectangle((hx, row_y, hx + hole_w, row_y + hole_h),
+                                   radius=max(1, hole_w // 3),
+                                   fill=(228, 231, 237, 255))
+    # Play triangle.
+    cx, cy = (px0 + px1) / 2, (py0 + py1) / 2
+    tr = h * 0.26
+    draw.polygon([(cx - tr * 0.68, cy - tr), (cx - tr * 0.68, cy + tr),
+                  (cx + tr * 1.0, cy)], fill=(245, 247, 250, 255))
 
 
 SIZES = [
@@ -182,7 +250,7 @@ SIZES = [
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    icon = draw_page(make_well())
+    icon = draw_docs(make_well())
 
     written = set()
     for filename, px, _, _ in SIZES:
@@ -216,7 +284,7 @@ def make_lena_variant():
         return
     out_dir = os.path.join(os.path.dirname(OUT_DIR), "LenaIcon.imageset")
     os.makedirs(out_dir, exist_ok=True)
-    icon = draw_page(make_well(), photo=Image.open(lena_path))
+    icon = draw_docs(make_well(), photo=Image.open(lena_path))
     icon.save(os.path.join(out_dir, "lena_icon.png"))
     contents = {
         "images": [

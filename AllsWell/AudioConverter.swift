@@ -4,6 +4,8 @@ import AVFoundation
 /// FLAC, …) and re-encodes to M4A/AAC, WAV, FLAC, or ALAC, streaming in
 /// chunks so long files report progress and cancel promptly.
 final class AudioFileConverter: Converter {
+    let engineName = "AVFoundation"
+
     static let m4a = OutputFormat(id: "m4a", title: "M4A", fileExtension: "m4a")
     static let wav = OutputFormat(id: "wav", title: "WAV", fileExtension: "wav")
     static let flac = OutputFormat(id: "flac", title: "FLAC", fileExtension: "flac")

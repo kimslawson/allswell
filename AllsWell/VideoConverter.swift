@@ -5,6 +5,8 @@ import AVFoundation
 /// AVFoundation can't open (MKV, WebM, AVI, …) fall through to the ffmpeg
 /// backend, if present.
 final class VideoConverter: Converter {
+    let engineName = "AVFoundation"
+
     static let mp4 = OutputFormat(id: "mp4-h264", title: "MP4", fileExtension: "mp4")
     static let hevc = OutputFormat(id: "mp4-hevc", title: "HEVC", fileExtension: "mp4")
     static let prores = OutputFormat(id: "mov-prores", title: "ProRes", fileExtension: "mov")

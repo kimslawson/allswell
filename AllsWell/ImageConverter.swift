@@ -126,6 +126,8 @@ enum ImageLoader {
 
 /// The original ImageWell backend: ImageIO/AppKit encoding to PNG or JPG.
 final class ImageIOConverter: Converter {
+    let engineName = "ImageIO"
+
     static let png = OutputFormat(id: "png", title: "PNG", fileExtension: "png")
     static let jpg = OutputFormat(id: "jpg", title: "JPG", fileExtension: "jpg")
 

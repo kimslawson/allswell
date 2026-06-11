@@ -28,12 +28,37 @@ final class MainViewController: NSViewController, WellViewDelegate {
         // If a Homebrew/MacPorts ffmpeg exists, its formats appear by magic.
         if let ffmpeg = FFmpegConverter.probe() {
             converters.append(ffmpeg)
-            ConversionLog.shared.info("ffmpeg found at \(ffmpeg.path) — extra formats enabled")
+            ConversionLog.shared.info("ffmpeg found at \(ffmpeg.path)")
         } else {
             ConversionLog.shared.info("No ffmpeg found — native formats only")
         }
+        MainViewController.logCapabilities(of: converters)
         return ConverterRegistry(converters: converters)
     }()
+
+    /// Startup manifest: which output formats exist right now, and which
+    /// engine provides each — so "formats appear by magic" is auditable.
+    /// The ffmpeg lists are already filtered to its build's actual encoders.
+    private static func logCapabilities(of converters: [Converter]) {
+        for mediaClass in orderedClasses {
+            var seen = Set<String>()
+            var parts: [String] = []
+            for converter in converters {
+                let titles = converter.outputFormats(for: mediaClass)
+                    .filter { seen.insert($0.id).inserted }
+                    .map(\.title)
+                if !titles.isEmpty {
+                    parts.append("\(titles.joined(separator: ", ")) (\(converter.engineName))")
+                }
+            }
+            let label = mediaClass.rawValue.capitalized
+            if parts.isEmpty {
+                ConversionLog.shared.info("\(label) output: none available")
+            } else {
+                ConversionLog.shared.info("\(label) output: " + parts.joined(separator: " + "))
+            }
+        }
+    }
 
     private static let orderedClasses: [MediaClass] = [.image, .audio, .video]
 

@@ -12,6 +12,8 @@ import Foundation
 /// particular binary can actually encode it — otherwise the picker entry
 /// would just die with "Encoder not found" at convert time.
 final class FFmpegConverter: Converter {
+    let engineName = "ffmpeg"
+
     static let mp3 = OutputFormat(id: "mp3", title: "MP3", fileExtension: "mp3")
     static let ogg = OutputFormat(id: "ogg", title: "OGG", fileExtension: "ogg")
     static let webm = OutputFormat(id: "webm", title: "WebM", fileExtension: "webm")

@@ -71,6 +71,9 @@ final class BasicConversionTask: ConversionTask {
 }
 
 protocol Converter {
+    /// Short engine name for the log ("ImageIO", "AVFoundation", "ffmpeg").
+    var engineName: String { get }
+
     /// Output formats this backend offers for a media class, in menu order.
     func outputFormats(for mediaClass: MediaClass) -> [OutputFormat]
 

@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 protocol ImageWellViewDelegate: AnyObject {
     func imageWellView(_ view: ImageWellView, didReceive loaded: LoadedImage)
+    func imageWellViewDidDoubleClick(_ view: ImageWellView)
 }
 
 /// The titular control: a recessed well that accepts image drags and pastes.
@@ -116,6 +117,9 @@ final class ImageWellView: NSView, NSUserInterfaceValidations {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        if event.clickCount == 2 {
+            delegate?.imageWellViewDidDoubleClick(self)
+        }
     }
 
     override func drawFocusRingMask() {

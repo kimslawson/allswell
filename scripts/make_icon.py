@@ -81,8 +81,10 @@ def make_well():
     return icon
 
 
-def draw_page(icon):
-    """Generic image-file icon: white page, dog-eared corner, photo inside."""
+def draw_page(icon, photo=None):
+    """Generic image-file icon: white page, dog-eared corner, photo inside.
+    With `photo`, that image fills the photo area instead of the abstract
+    sky/sun/hills artwork."""
     page_w, page_h, fold = 380, 470, 96
     x0 = (S - page_w) // 2
     y0 = (S - page_h) // 2 + 6
@@ -110,9 +112,26 @@ def draw_page(icon):
     draw.line([(x1 - fold, y0), (x1 - fold, y0 + fold), (x1, y0 + fold)],
               fill=(140, 140, 148, 255), width=6, joint="curve")
 
-    # Photo: sky, sun, hills.
+    # Photo area.
     px0, py0 = x0 + 42, y0 + 130
     px1, py1 = x1 - 42, y1 - 48
+
+    if photo is not None:
+        # Center-crop the photo to the frame's aspect and drop it in.
+        frame_w, frame_h = px1 - px0, py1 - py0
+        scale = max(frame_w / photo.width, frame_h / photo.height)
+        resized = photo.convert("RGB").resize(
+            (round(photo.width * scale), round(photo.height * scale)),
+            Image.LANCZOS)
+        cx = (resized.width - frame_w) // 2
+        cy = (resized.height - frame_h) // 2
+        icon.paste(resized.crop((cx, cy, cx + frame_w, cy + frame_h)),
+                   (px0, py0))
+        ImageDraw.Draw(icon).rectangle((px0, py0, px1, py1),
+                                       outline=(150, 150, 158, 255), width=5)
+        return icon
+
+    # Abstract artwork: sky, sun, hills.
     sky = Image.new("RGBA", (px1 - px0, py1 - py0))
     for y in range(sky.height):
         t = y / max(1, sky.height - 1)
@@ -184,6 +203,33 @@ def main():
         json.dump(contents, fp, indent=2)
         fp.write("\n")
     print(f"Wrote {len(written)} icon sizes to {os.path.normpath(OUT_DIR)}")
+
+    make_lena_variant()
+
+
+def make_lena_variant():
+    """Easter-egg Dock icon: the well holds Lena instead of the abstract art.
+    Generated only if lena_std.tif is present in the repo root."""
+    lena_path = os.path.join(os.path.dirname(__file__), "..", "lena_std.tif")
+    if not os.path.exists(lena_path):
+        print("lena_std.tif not found; skipping easter-egg icon")
+        return
+    out_dir = os.path.join(os.path.dirname(OUT_DIR), "LenaIcon.imageset")
+    os.makedirs(out_dir, exist_ok=True)
+    icon = draw_page(make_well(), photo=Image.open(lena_path))
+    icon.save(os.path.join(out_dir, "lena_icon.png"))
+    contents = {
+        "images": [
+            {"filename": "lena_icon.png", "idiom": "universal", "scale": "1x"},
+            {"idiom": "universal", "scale": "2x"},
+            {"idiom": "universal", "scale": "3x"},
+        ],
+        "info": {"author": "xcode", "version": 1},
+    }
+    with open(os.path.join(out_dir, "Contents.json"), "w") as fp:
+        json.dump(contents, fp, indent=2)
+        fp.write("\n")
+    print(f"Wrote easter-egg icon to {os.path.normpath(out_dir)}")
 
 
 if __name__ == "__main__":

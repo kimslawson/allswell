@@ -5,6 +5,7 @@ final class MainViewController: NSViewController, ImageWellViewDelegate {
     private enum DefaultsKey {
         static let destinationPath = "destinationPath"
         static let format = "format"
+        static let lenaMode = "lenaMode"
     }
 
     private let imageWell = ImageWellView(frame: .zero)
@@ -94,6 +95,11 @@ final class MainViewController: NSViewController, ImageWellViewDelegate {
         updateDestinationButton()
     }
 
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        applyAppIcon()
+    }
+
     override func viewDidAppear() {
         super.viewDidAppear()
         view.window?.makeFirstResponder(imageWell)
@@ -146,6 +152,21 @@ final class MainViewController: NSViewController, ImageWellViewDelegate {
 
     func imageWellView(_ view: ImageWellView, didReceive loaded: LoadedImage) {
         ingest(loaded)
+    }
+
+    // Easter egg: double-clicking the well swaps the Dock icon's artwork
+    // for Lena of image-processing fame, and back.
+    func imageWellViewDidDoubleClick(_ view: ImageWellView) {
+        let defaults = UserDefaults.standard
+        defaults.set(!defaults.bool(forKey: DefaultsKey.lenaMode),
+                     forKey: DefaultsKey.lenaMode)
+        applyAppIcon()
+    }
+
+    private func applyAppIcon() {
+        let lenaMode = UserDefaults.standard.bool(forKey: DefaultsKey.lenaMode)
+        // nil restores the bundle's regular icon.
+        NSApp.applicationIconImage = lenaMode ? NSImage(named: "LenaIcon") : nil
     }
 
     private func ingest(_ loaded: LoadedImage) {

@@ -83,7 +83,8 @@ final class MainViewController: NSViewController, WellViewDelegate {
     private let destinationButton = NSButton(title: "", target: nil, action: nil)
     private let folderImage = NSImage(systemSymbolName: "folder",
                                       accessibilityDescription: "Destination folder")
-    private let toast = NSTextField(labelWithString: "")
+    private let toast = NSView()
+    private let toastLabel = NSTextField(labelWithString: "")
     private var toastHideWork: DispatchWorkItem?
     private let progressBar = NSProgressIndicator()
     private let cancelButton = NSButton(title: "", target: nil, action: nil)
@@ -208,13 +209,14 @@ final class MainViewController: NSViewController, WellViewDelegate {
         destinationButton.action = #selector(chooseDestination(_:))
         view.addSubview(destinationButton)
 
-        toast.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium)
-        toast.textColor = .white
-        toast.alignment = .center
+        toastLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium)
+        toastLabel.textColor = .white
+        toastLabel.alignment = .center
         toast.wantsLayer = true
         toast.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.72).cgColor
         toast.layer?.cornerRadius = 6
         toast.isHidden = true
+        toast.addSubview(toastLabel)
         view.addSubview(toast)
 
         progressBar.style = .bar
@@ -865,14 +867,21 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
     private func showToast(_ message: String) {
         toastHideWork?.cancel()
-        toast.stringValue = message
-        toast.sizeToFit()
-        var frame = toast.frame
-        frame.size.width += 16
-        frame.size.height += 6
-        frame.origin.x = well.frame.midX - frame.width / 2
-        frame.origin.y = well.frame.minY + 10
-        toast.frame = frame
+        toastLabel.stringValue = message
+        toastLabel.sizeToFit()
+
+        let hPad: CGFloat = 8
+        let vPad: CGFloat = 5
+        let labelSize = toastLabel.frame.size
+        let pillWidth = labelSize.width + hPad * 2
+        let pillHeight = labelSize.height + vPad * 2
+        toast.frame = NSRect(x: well.frame.midX - pillWidth / 2,
+                             y: well.frame.minY + 10,
+                             width: pillWidth,
+                             height: pillHeight)
+        // Center the label in the pill so top/bottom padding stay equal.
+        toastLabel.frame = NSRect(x: hPad, y: (pillHeight - labelSize.height) / 2,
+                                  width: labelSize.width, height: labelSize.height)
 
         toast.isHidden = false
         toast.alphaValue = 0
@@ -891,6 +900,6 @@ final class MainViewController: NSViewController, WellViewDelegate {
             })
         }
         toastHideWork = hide
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6, execute: hide)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.2, execute: hide)
     }
 }

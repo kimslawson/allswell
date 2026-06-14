@@ -30,29 +30,48 @@ OUT_DIR = os.path.join(os.path.dirname(__file__), "..",
                        "AllsWell", "Assets.xcassets", "AppIcon.appiconset")
 
 
+def geom(margin):
+    """Well bounding box and corner radius for a given canvas margin, keeping
+    the ~22.4% corner proportion of the system grid."""
+    box = (margin, margin, S - margin, S - margin)
+    radius = round((S - 2 * margin) * 0.224)
+    return box, radius
+
+
 def params_for(px):
     """Per-size rendering recipe. Master dimensions for small sizes are scaled
-    by k = S/px so that, once downscaled to `px`, the border and inner shadow
-    land at the intended *final* pixel thickness instead of disappearing."""
+    by k = S/px so that, once downscaled to `px`, edges and shadows land at an
+    intended *final* pixel thickness instead of disappearing.
+
+    Three regimes:
+      <=32  menu / list sizes: the well fills nearly the whole tile, borderless,
+            defined purely by a recessed shadow, with a big single document — so
+            it carries the same visual mass as neighbouring icons in a menu.
+      ==64  Finder list / medium: an inset Aqua well with a border and a boosted
+            recessed shadow, single document.
+      >=128 the full three-doc composition, unchanged from the grid version.
+    """
     k = S / px
     if px <= 32:
-        # Tiny: a single document, a fat edge (~1.5px final), a strong top
-        # shadow. The faint inner hairline and side ring can't survive here,
-        # so they're dropped rather than rendered into noise.
-        return dict(minimal=True,
-                    border_w=round(1.5 * k), inner_w=0,
-                    shadow_opacity=0.60, shadow_band=round(1.7 * k),
-                    shadow_blur=1.1 * k, ring_opacity=0.0, doc_scale=1.12)
+        box, radius = geom(8)
+        return dict(minimal=True, box=box, radius=radius,
+                    border_w=0, inner_w=0,
+                    shadow_opacity=0.55, shadow_band=round(2.4 * k), shadow_blur=1.5 * k,
+                    ring_opacity=0.32, ring_inset=round(1.7 * k), ring_blur=1.1 * k,
+                    doc_scale=(1.32 if px <= 16 else 1.20))
     if px <= 64:
-        return dict(minimal=True,
+        box, radius = geom(64)
+        return dict(minimal=True, box=box, radius=radius,
                     border_w=round(1.7 * k), inner_w=round(0.6 * k),
-                    shadow_opacity=0.50, shadow_band=round(1.9 * k),
-                    shadow_blur=1.4 * k, ring_opacity=0.12, doc_scale=1.06)
-    # Large (>= 128): the full three-doc composition, untouched from before.
-    return dict(minimal=False,
+                    shadow_opacity=0.60, shadow_band=round(2.2 * k), shadow_blur=1.5 * k,
+                    ring_opacity=0.20, ring_inset=22, ring_blur=14,
+                    doc_scale=1.06)
+    box, radius = geom(100)
+    return dict(minimal=False, box=box, radius=radius,
                 border_w=13, inner_w=4,
                 shadow_opacity=0.42, shadow_band=34, shadow_blur=20,
-                ring_opacity=0.16, doc_scale=1.0)
+                ring_opacity=0.16, ring_inset=22, ring_blur=14,
+                doc_scale=1.0)
 
 
 def rounded_mask(box, radius, blur=0):
@@ -64,8 +83,9 @@ def rounded_mask(box, radius, blur=0):
 
 
 def make_well(p):
+    box, radius = p["box"], p["radius"]
     icon = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    mask = rounded_mask(BOX, RADIUS)
+    mask = rounded_mask(box, radius)
 
     # Vertical gradient fill: slightly darker at the top (recessed look).
     grad = Image.new("L", (1, 256))
@@ -78,51 +98,56 @@ def make_well(p):
     icon.paste(fill, (0, 0), mask)
 
     # Inner shadow: band along the top edge, clipped to the well. Thickened and
-    # darkened for small sizes so it doesn't downscale into nothing.
+    # darkened for small sizes so it doesn't downscale into nothing — and, when
+    # the well is borderless, it is what makes the recess read at all.
     band = max(1, round(p["shadow_band"]))
     top_band = ImageChops.subtract(
-        rounded_mask(BOX, RADIUS),
-        rounded_mask((BOX[0], BOX[1] + band, BOX[2], BOX[3] + band), RADIUS))
+        rounded_mask(box, radius),
+        rounded_mask((box[0], box[1] + band, box[2], box[3] + band), radius))
     top_band = top_band.filter(ImageFilter.GaussianBlur(max(1, p["shadow_blur"])))
     top_band = ImageChops.multiply(top_band, mask)
     icon.paste(Image.new("RGBA", (S, S), (35, 35, 45, 255)), (0, 0),
                top_band.point(lambda v: int(v * p["shadow_opacity"])))
 
-    # Faint all-around inset shading so the sides read as recessed too. Skipped
-    # at tiny sizes where it would only muddy the few pixels available.
+    # All-around inset shading so the edges read as recessed. For borderless
+    # small sizes this is also what gives the well a defined edge, so it's
+    # scaled up (thicker inset, stronger) the smaller the icon gets.
     if p["ring_opacity"] > 0:
+        inset = max(1, round(p["ring_inset"]))
         ring = ImageChops.subtract(
-            rounded_mask(BOX, RADIUS),
-            rounded_mask((BOX[0] + 22, BOX[1] + 22, BOX[2] - 22, BOX[3] - 22),
-                         RADIUS - 22))
-        ring = ring.filter(ImageFilter.GaussianBlur(14))
+            rounded_mask(box, radius),
+            rounded_mask((box[0] + inset, box[1] + inset,
+                          box[2] - inset, box[3] - inset), radius - inset))
+        ring = ring.filter(ImageFilter.GaussianBlur(max(1, p["ring_blur"])))
         ring = ImageChops.multiply(ring, mask)
         icon.paste(Image.new("RGBA", (S, S), (40, 40, 50, 255)), (0, 0),
                    ring.point(lambda v: int(v * p["ring_opacity"])))
 
     # Bottom inner highlight, the classic Aqua glint.
     bottom_band = ImageChops.subtract(
-        rounded_mask(BOX, RADIUS),
-        rounded_mask((BOX[0], BOX[1] - 26, BOX[2], BOX[3] - 26), RADIUS))
+        rounded_mask(box, radius),
+        rounded_mask((box[0], box[1] - 26, box[2], box[3] - 26), radius))
     bottom_band = bottom_band.filter(ImageFilter.GaussianBlur(14))
     bottom_band = ImageChops.multiply(bottom_band, mask)
     icon.paste(Image.new("RGBA", (S, S), (255, 255, 255, 255)), (0, 0),
                bottom_band.point(lambda v: int(v * 0.75)))
 
-    draw_border(icon, p["border_w"], p["inner_w"])
+    draw_border(icon, box, radius, p["border_w"], p["inner_w"])
     return icon
 
 
-def draw_border(icon, border_w=13, inner_w=4):
-    """The border that makes it legible as a well. Redrawn after the docs go
-    in, so their clipped edges sit cleanly under it."""
+def draw_border(icon, box, radius, border_w=13, inner_w=4):
+    """The well's edge stroke. Skipped entirely when border_w is 0 (small
+    sizes), where the recessed shadow alone defines the well."""
+    if border_w <= 0:
+        return
     draw = ImageDraw.Draw(icon)
-    draw.rounded_rectangle(BOX, radius=RADIUS, outline=(125, 125, 132, 255),
+    draw.rounded_rectangle(box, radius=radius, outline=(125, 125, 132, 255),
                            width=border_w)
     if inner_w > 0:
-        inner = (BOX[0] + border_w, BOX[1] + border_w,
-                 BOX[2] - border_w, BOX[3] - border_w)
-        draw.rounded_rectangle(inner, radius=max(1, RADIUS - border_w),
+        inner = (box[0] + border_w, box[1] + border_w,
+                 box[2] - border_w, box[3] - border_w)
+        draw.rounded_rectangle(inner, radius=max(1, radius - border_w),
                                outline=(90, 90, 98, 90), width=inner_w)
 
 
@@ -132,6 +157,7 @@ def draw_docs(icon, p, photo=None):
     well's edges. Small sizes (p["minimal"]) get a single, larger image
     document so something legible survives. With `photo`, that image fills the
     center document instead of the abstract sky/sun/hills artwork."""
+    box, radius = p["box"], p["radius"]
     overlay = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     cy = (S - 470) // 2 + 6 + 470 // 2
     if p["minimal"]:
@@ -143,10 +169,10 @@ def draw_docs(icon, p, photo=None):
 
     # Clip everything to the inside of the well border.
     bw = p["border_w"]
-    inner = (BOX[0] + bw, BOX[1] + bw, BOX[2] - bw, BOX[3] - bw)
-    clip = rounded_mask(inner, RADIUS - bw)
+    inner = (box[0] + bw, box[1] + bw, box[2] - bw, box[3] - bw)
+    clip = rounded_mask(inner, radius - bw)
     icon.paste(overlay, (0, 0), ImageChops.multiply(overlay.split()[3], clip))
-    draw_border(icon, bw, p["inner_w"])
+    draw_border(icon, box, radius, bw, p["inner_w"])
     return icon
 
 

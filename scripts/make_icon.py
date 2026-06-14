@@ -4,6 +4,14 @@ bordered, rounded rect on the modern macOS icon grid) holding three documents
 side by side — audio, image, video — with the outer two clipped by the well's
 edges. Writes all AppIcon.appiconset PNGs plus Contents.json.
 
+Optical sizing: rather than downscaling one master to every size (which makes
+the well edge and inner shadow vanish below ~64px and turns the three-doc
+composition to mush), each size is rendered from a master tuned for it. Small
+sizes drop to a single, larger document and get a disproportionately thicker
+border and stronger inner shadow — computed backward from the target pixel
+size — so the recessed-well read survives the downscale, the way a typeface's
+optical-size cut fattens details for small text.
+
 Usage: python3 scripts/make_icon.py
 Requires: pillow
 """
@@ -22,15 +30,40 @@ OUT_DIR = os.path.join(os.path.dirname(__file__), "..",
                        "AllsWell", "Assets.xcassets", "AppIcon.appiconset")
 
 
+def params_for(px):
+    """Per-size rendering recipe. Master dimensions for small sizes are scaled
+    by k = S/px so that, once downscaled to `px`, the border and inner shadow
+    land at the intended *final* pixel thickness instead of disappearing."""
+    k = S / px
+    if px <= 32:
+        # Tiny: a single document, a fat edge (~1.5px final), a strong top
+        # shadow. The faint inner hairline and side ring can't survive here,
+        # so they're dropped rather than rendered into noise.
+        return dict(minimal=True,
+                    border_w=round(1.5 * k), inner_w=0,
+                    shadow_opacity=0.60, shadow_band=round(1.7 * k),
+                    shadow_blur=1.1 * k, ring_opacity=0.0, doc_scale=1.12)
+    if px <= 64:
+        return dict(minimal=True,
+                    border_w=round(1.7 * k), inner_w=round(0.6 * k),
+                    shadow_opacity=0.50, shadow_band=round(1.9 * k),
+                    shadow_blur=1.4 * k, ring_opacity=0.12, doc_scale=1.06)
+    # Large (>= 128): the full three-doc composition, untouched from before.
+    return dict(minimal=False,
+                border_w=13, inner_w=4,
+                shadow_opacity=0.42, shadow_band=34, shadow_blur=20,
+                ring_opacity=0.16, doc_scale=1.0)
+
+
 def rounded_mask(box, radius, blur=0):
     mask = Image.new("L", (S, S), 0)
-    ImageDraw.Draw(mask).rounded_rectangle(box, radius=radius, fill=255)
+    ImageDraw.Draw(mask).rounded_rectangle(box, radius=max(1, radius), fill=255)
     if blur:
         mask = mask.filter(ImageFilter.GaussianBlur(blur))
     return mask
 
 
-def make_well():
+def make_well(p):
     icon = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     mask = rounded_mask(BOX, RADIUS)
 
@@ -44,24 +77,28 @@ def make_well():
                                 Image.new("L", (S, S), 255)))
     icon.paste(fill, (0, 0), mask)
 
-    # Inner shadow: band along the top edge, clipped to the well.
+    # Inner shadow: band along the top edge, clipped to the well. Thickened and
+    # darkened for small sizes so it doesn't downscale into nothing.
+    band = max(1, round(p["shadow_band"]))
     top_band = ImageChops.subtract(
         rounded_mask(BOX, RADIUS),
-        rounded_mask((BOX[0], BOX[1] + 34, BOX[2], BOX[3] + 34), RADIUS))
-    top_band = top_band.filter(ImageFilter.GaussianBlur(20))
+        rounded_mask((BOX[0], BOX[1] + band, BOX[2], BOX[3] + band), RADIUS))
+    top_band = top_band.filter(ImageFilter.GaussianBlur(max(1, p["shadow_blur"])))
     top_band = ImageChops.multiply(top_band, mask)
     icon.paste(Image.new("RGBA", (S, S), (35, 35, 45, 255)), (0, 0),
-               top_band.point(lambda v: int(v * 0.42)))
+               top_band.point(lambda v: int(v * p["shadow_opacity"])))
 
-    # Faint all-around inset shading so the sides read as recessed too.
-    ring = ImageChops.subtract(
-        rounded_mask(BOX, RADIUS),
-        rounded_mask((BOX[0] + 22, BOX[1] + 22, BOX[2] - 22, BOX[3] - 22),
-                     RADIUS - 22))
-    ring = ring.filter(ImageFilter.GaussianBlur(14))
-    ring = ImageChops.multiply(ring, mask)
-    icon.paste(Image.new("RGBA", (S, S), (40, 40, 50, 255)), (0, 0),
-               ring.point(lambda v: int(v * 0.16)))
+    # Faint all-around inset shading so the sides read as recessed too. Skipped
+    # at tiny sizes where it would only muddy the few pixels available.
+    if p["ring_opacity"] > 0:
+        ring = ImageChops.subtract(
+            rounded_mask(BOX, RADIUS),
+            rounded_mask((BOX[0] + 22, BOX[1] + 22, BOX[2] - 22, BOX[3] - 22),
+                         RADIUS - 22))
+        ring = ring.filter(ImageFilter.GaussianBlur(14))
+        ring = ImageChops.multiply(ring, mask)
+        icon.paste(Image.new("RGBA", (S, S), (40, 40, 50, 255)), (0, 0),
+                   ring.point(lambda v: int(v * p["ring_opacity"])))
 
     # Bottom inner highlight, the classic Aqua glint.
     bottom_band = ImageChops.subtract(
@@ -72,37 +109,44 @@ def make_well():
     icon.paste(Image.new("RGBA", (S, S), (255, 255, 255, 255)), (0, 0),
                bottom_band.point(lambda v: int(v * 0.75)))
 
-    draw_border(icon)
+    draw_border(icon, p["border_w"], p["inner_w"])
     return icon
 
 
-def draw_border(icon):
+def draw_border(icon, border_w=13, inner_w=4):
     """The border that makes it legible as a well. Redrawn after the docs go
     in, so their clipped edges sit cleanly under it."""
     draw = ImageDraw.Draw(icon)
     draw.rounded_rectangle(BOX, radius=RADIUS, outline=(125, 125, 132, 255),
-                           width=13)
-    inner = (BOX[0] + 13, BOX[1] + 13, BOX[2] - 13, BOX[3] - 13)
-    draw.rounded_rectangle(inner, radius=RADIUS - 13,
-                           outline=(90, 90, 98, 90), width=4)
+                           width=border_w)
+    if inner_w > 0:
+        inner = (BOX[0] + border_w, BOX[1] + border_w,
+                 BOX[2] - border_w, BOX[3] - border_w)
+        draw.rounded_rectangle(inner, radius=max(1, RADIUS - border_w),
+                               outline=(90, 90, 98, 90), width=inner_w)
 
 
-def draw_docs(icon, photo=None):
-    """Three dog-eared documents side by side — audio, image, video — with
-    the outer two running past the well's edges and clipped by them. With
-    `photo`, that image fills the center document instead of the abstract
-    sky/sun/hills artwork."""
+def draw_docs(icon, p, photo=None):
+    """The documents inside the well. Large sizes get three dog-eared pages
+    side by side — audio, image, video — with the outer two clipped by the
+    well's edges. Small sizes (p["minimal"]) get a single, larger image
+    document so something legible survives. With `photo`, that image fills the
+    center document instead of the abstract sky/sun/hills artwork."""
     overlay = Image.new("RGBA", (S, S), (0, 0, 0, 0))
     cy = (S - 470) // 2 + 6 + 470 // 2
-    draw_doc(overlay, 186, cy, 0.80, "audio")
-    draw_doc(overlay, S - 186, cy, 0.80, "video")
-    draw_doc(overlay, S // 2, cy, 1.0, "image", photo=photo)
+    if p["minimal"]:
+        draw_doc(overlay, S // 2, cy, p["doc_scale"], "image", photo=photo)
+    else:
+        draw_doc(overlay, 186, cy, 0.80, "audio")
+        draw_doc(overlay, S - 186, cy, 0.80, "video")
+        draw_doc(overlay, S // 2, cy, 1.0, "image", photo=photo)
 
     # Clip everything to the inside of the well border.
-    inner = (BOX[0] + 13, BOX[1] + 13, BOX[2] - 13, BOX[3] - 13)
-    clip = rounded_mask(inner, RADIUS - 13)
+    bw = p["border_w"]
+    inner = (BOX[0] + bw, BOX[1] + bw, BOX[2] - bw, BOX[3] - bw)
+    clip = rounded_mask(inner, RADIUS - bw)
     icon.paste(overlay, (0, 0), ImageChops.multiply(overlay.split()[3], clip))
-    draw_border(icon)
+    draw_border(icon, bw, p["inner_w"])
     return icon
 
 
@@ -234,6 +278,13 @@ def draw_video_art(layer, px0, py0, px1, py1, scale):
                   (cx + tr * 1.0, cy)], fill=(245, 247, 250, 255))
 
 
+def render_icon(px, photo=None):
+    """Render a master tuned for `px` and downscale it to `px`."""
+    p = params_for(px)
+    master = draw_docs(make_well(p), p, photo=photo)
+    return master if px == S else master.resize((px, px), Image.LANCZOS)
+
+
 SIZES = [
     ("icon_16.png", 16, "16x16", "1x"),
     ("icon_32.png", 32, "16x16", "2x"),
@@ -250,15 +301,13 @@ SIZES = [
 
 def main():
     os.makedirs(OUT_DIR, exist_ok=True)
-    icon = draw_docs(make_well())
 
     written = set()
     for filename, px, _, _ in SIZES:
         if filename in written:
             continue
         written.add(filename)
-        scaled = icon if px == S else icon.resize((px, px), Image.LANCZOS)
-        scaled.save(os.path.join(OUT_DIR, filename))
+        render_icon(px).save(os.path.join(OUT_DIR, filename))
 
     contents = {
         "images": [
@@ -277,14 +326,15 @@ def main():
 
 def make_lena_variant():
     """Easter-egg Dock icon: the well holds Lena instead of the abstract art.
-    Generated only if lena_std.tif is present in the repo root."""
+    Generated only if lena_std.tif is present in the repo root. Uses the full
+    composition since the Dock icon is always shown large."""
     lena_path = os.path.join(os.path.dirname(__file__), "..", "lena_std.tif")
     if not os.path.exists(lena_path):
         print("lena_std.tif not found; skipping easter-egg icon")
         return
     out_dir = os.path.join(os.path.dirname(OUT_DIR), "LenaIcon.imageset")
     os.makedirs(out_dir, exist_ok=True)
-    icon = draw_docs(make_well(), photo=Image.open(lena_path))
+    icon = render_icon(S, photo=Image.open(lena_path))
     icon.save(os.path.join(out_dir, "lena_icon.png"))
     contents = {
         "images": [

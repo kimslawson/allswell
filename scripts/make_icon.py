@@ -56,21 +56,21 @@ def params_for(px):
         box, radius = geom(8)
         return dict(minimal=True, box=box, radius=radius,
                     border_w=0, inner_w=0,
-                    shadow_opacity=0.55, shadow_band=round(2.4 * k), shadow_blur=1.5 * k,
-                    ring_opacity=0.32, ring_inset=round(1.7 * k), ring_blur=1.1 * k,
+                    shadow_opacity=0.68, shadow_band=round(3.2 * k), shadow_blur=1.8 * k,
+                    ring_opacity=0.44, ring_inset=round(2.1 * k), ring_blur=1.3 * k,
                     doc_scale=(1.32 if px <= 16 else 1.20))
     if px <= 64:
         box, radius = geom(64)
         return dict(minimal=True, box=box, radius=radius,
                     border_w=round(1.7 * k), inner_w=round(0.6 * k),
-                    shadow_opacity=0.60, shadow_band=round(2.2 * k), shadow_blur=1.5 * k,
-                    ring_opacity=0.20, ring_inset=22, ring_blur=14,
+                    shadow_opacity=0.72, shadow_band=round(2.8 * k), shadow_blur=1.8 * k,
+                    ring_opacity=0.28, ring_inset=22, ring_blur=14,
                     doc_scale=1.06)
     box, radius = geom(100)
     return dict(minimal=False, box=box, radius=radius,
                 border_w=13, inner_w=4,
-                shadow_opacity=0.42, shadow_band=34, shadow_blur=20,
-                ring_opacity=0.16, ring_inset=22, ring_blur=14,
+                shadow_opacity=0.55, shadow_band=52, shadow_blur=22,
+                ring_opacity=0.22, ring_inset=22, ring_blur=14,
                 doc_scale=1.0)
 
 
@@ -90,7 +90,7 @@ def make_well(p):
     # Vertical gradient fill: slightly darker at the top (recessed look).
     grad = Image.new("L", (1, 256))
     for y in range(256):
-        grad.putpixel((0, y), int(229 + (250 - 229) * y / 255))
+        grad.putpixel((0, y), int(208 + (232 - 208) * y / 255))
     grad = grad.resize((S, S))
     fill = Image.merge("RGBA", (grad, grad,
                                 grad.point(lambda v: min(255, v + 3)),

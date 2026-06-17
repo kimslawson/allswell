@@ -97,17 +97,25 @@ def make_well(p):
                                 Image.new("L", (S, S), 255)))
     icon.paste(fill, (0, 0), mask)
 
-    # Inner shadow: band along the top edge, clipped to the well. Thickened and
-    # darkened for small sizes so it doesn't downscale into nothing — and, when
-    # the well is borderless, it is what makes the recess read at all.
+    # Inner shadow: band along the top, left, and right edges, clipped to the
+    # well. Thickened and darkened for small sizes so it doesn't downscale into
+    # nothing — and, when the well is borderless, it is what makes the recess
+    # read at all.
     band = max(1, round(p["shadow_band"]))
     top_band = ImageChops.subtract(
         rounded_mask(box, radius),
         rounded_mask((box[0], box[1] + band, box[2], box[3] + band), radius))
-    top_band = top_band.filter(ImageFilter.GaussianBlur(max(1, p["shadow_blur"])))
-    top_band = ImageChops.multiply(top_band, mask)
+    left_band = ImageChops.subtract(
+        rounded_mask(box, radius),
+        rounded_mask((box[0] + band, box[1], box[2] + band, box[3]), radius))
+    right_band = ImageChops.subtract(
+        rounded_mask(box, radius),
+        rounded_mask((box[0] - band, box[1], box[2] - band, box[3]), radius))
+    edge_shadow = ImageChops.lighter(ImageChops.lighter(top_band, left_band), right_band)
+    edge_shadow = edge_shadow.filter(ImageFilter.GaussianBlur(max(1, p["shadow_blur"])))
+    edge_shadow = ImageChops.multiply(edge_shadow, mask)
     icon.paste(Image.new("RGBA", (S, S), (35, 35, 45, 255)), (0, 0),
-               top_band.point(lambda v: int(v * p["shadow_opacity"])))
+               edge_shadow.point(lambda v: int(v * p["shadow_opacity"])))
 
     # All-around inset shading so the edges read as recessed. For borderless
     # small sizes this is also what gives the well a defined edge, so it's

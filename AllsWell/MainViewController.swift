@@ -358,6 +358,12 @@ final class MainViewController: NSViewController, WellViewDelegate {
         rebuildQueue(for: nil)
     }
 
+    /// The well's proxy image drags back out as the converted file(s), so the
+    /// draggable list must track savedURL wherever it changes.
+    private func updateDraggableFiles() {
+        well.draggableFileURLs = items.compactMap(\.savedURL)
+    }
+
     // Easter egg: double-clicking the well swaps the Dock icon's artwork
     // for Lena of image-processing fame, and back.
     func wellViewDidDoubleClick(_ view: WellView) {
@@ -620,6 +626,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
             }
         }
 
+        updateDraggableFiles()
         pendingIndexes = queue
         queueTotal = queue.count + (activeIndex != nil ? 1 : 0)
         queueDone = 0
@@ -713,6 +720,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
             items[index].savedURL = url
             items[index].savedFormatID = format.id
             items[index].failed = false
+            updateDraggableFiles()
             ConversionLog.shared.info("Saved \(url.path)")
             if items.count == 1 {
                 // Reflect any de-duplication ("name 2") back into the field.

@@ -14,6 +14,10 @@ final class WellView: NSView, NSUserInterfaceValidations {
         didSet { needsDisplay = true }
     }
 
+    /// Converted outputs currently on disk. Non-empty makes the proxy image
+    /// draggable back out of the well, into Finder or any other app.
+    var draggableFileURLs: [URL] = []
+
     var placeholder = "Drop or paste a file" {
         didSet { needsDisplay = true }
     }
@@ -21,6 +25,8 @@ final class WellView: NSView, NSUserInterfaceValidations {
     private var isDragTarget = false {
         didSet { needsDisplay = true }
     }
+
+    private var mouseDownEvent: NSEvent?
 
     private let promiseQueue: OperationQueue = {
         let queue = OperationQueue()
@@ -122,7 +128,22 @@ final class WellView: NSView, NSUserInterfaceValidations {
         window?.makeFirstResponder(self)
         if event.clickCount == 2 {
             delegate?.wellViewDidDoubleClick(self)
+            return
         }
+        mouseDownEvent = event
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let downEvent = mouseDownEvent else { return }
+        let down = downEvent.locationInWindow
+        let now = event.locationInWindow
+        guard hypot(now.x - down.x, now.y - down.y) > 4 else { return }
+        mouseDownEvent = nil
+        beginDragOut(with: downEvent)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        mouseDownEvent = nil
     }
 
     override func drawFocusRingMask() {
@@ -149,7 +170,39 @@ final class WellView: NSView, NSUserInterfaceValidations {
         return responds(to: item.action)
     }
 
-    // MARK: Dragging
+    // MARK: Dragging out
+
+    /// Starts a drag of the converted file(s) the well currently represents.
+    /// A single item drags as the proxy image itself; batches drag as a stack
+    /// of file icons.
+    private func beginDragOut(with event: NSEvent) {
+        let urls = draggableFileURLs.filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard !urls.isEmpty else { return }
+        let location = convert(event.locationInWindow, from: nil)
+
+        var draggingItems: [NSDraggingItem] = []
+        for url in urls {
+            let item = NSDraggingItem(pasteboardWriter: url as NSURL)
+            let badge: NSImage
+            if urls.count == 1, let image, image.size.width > 0, image.size.height > 0 {
+                badge = image
+            } else {
+                badge = NSWorkspace.shared.icon(forFile: url.path)
+            }
+            let maxSide: CGFloat = 96
+            let scale = min(maxSide / max(badge.size.width, badge.size.height), 1)
+            let size = NSSize(width: badge.size.width * scale,
+                              height: badge.size.height * scale)
+            item.setDraggingFrame(NSRect(x: location.x - size.width / 2,
+                                         y: location.y - size.height / 2,
+                                         width: size.width, height: size.height),
+                                  contents: badge)
+            draggingItems.append(item)
+        }
+        beginDraggingSession(with: draggingItems, event: event, source: self)
+    }
+
+    // MARK: Dragging in
 
     private func pasteboardHasMedia(_ pasteboard: NSPasteboard) -> Bool {
         if pasteboard.canReadObject(forClasses: [NSURL.self], options: [
@@ -162,7 +215,10 @@ final class WellView: NSView, NSUserInterfaceValidations {
     }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard pasteboardHasMedia(sender.draggingPasteboard) else { return [] }
+        // A drag that started here is the converted file leaving; re-ingesting
+        // it on a wobbly drop would be nonsense.
+        guard (sender.draggingSource as? WellView) !== self,
+              pasteboardHasMedia(sender.draggingPasteboard) else { return [] }
         isDragTarget = true
         return .copy
     }
@@ -205,5 +261,12 @@ final class WellView: NSView, NSUserInterfaceValidations {
             return true
         }
         return false
+    }
+}
+
+extension WellView: NSDraggingSource {
+    func draggingSession(_ session: NSDraggingSession,
+                         sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
+        .copy
     }
 }

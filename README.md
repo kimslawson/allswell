@@ -45,6 +45,9 @@ AVFoundation, and (optionally) ffmpeg backends behind it.
   the current destination using the current filename and format. A small toast
   confirms where it went. Conversions that take more than a beat show a thin
   progress bar with a cancel ✕ over the well.
+- **Drag it back out.** Once converted, the proxy in the well *is* the
+  converted file: drag it out into Finder, Mail, or any other app. A batch
+  drags as the whole set of converted files.
 - **Type-aware format picker.** The format popup offers what makes sense for
   what you dropped, and remembers your last choice per media class.
 - **Fix-ups are renames.** Editing the filename, switching the format, or

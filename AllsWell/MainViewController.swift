@@ -383,6 +383,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
     private func updateWellDisplay() {
         let generation = ingestGeneration
+        well.toolTip = items.count > 1 ? batchTooltip() : nil
         if items.count == 1 {
             let media = items[0].media
             switch media.payload {
@@ -400,14 +401,159 @@ final class MainViewController: NSViewController, WellViewDelegate {
                 }
             }
         } else if items.count > 1 {
+            // Symbol placeholder until the pile's thumbnails resolve.
             let classes = Set(items.map(\.media.mediaClass))
             if classes.count == 1, let only = classes.first {
                 well.image = Self.symbolImage(for: only)
             } else {
                 well.image = Self.symbolImage(named: "square.stack")
             }
+            loadPile(generation: generation)
         } else {
             well.image = nil
+        }
+    }
+
+    /// Hovering a batch answers "how many, and what": the summary line plus
+    /// the first filenames, truncated so a 500-file drop can't flood the
+    /// screen with tooltip.
+    private func batchTooltip() -> String {
+        let names = items.map(\.media.suggestedName)
+        let maxShown = 25
+        var lines = [batchSummary()]
+        lines += names.prefix(maxShown)
+        if names.count > maxShown {
+            lines.append("… and \(names.count - maxShown) more")
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    // MARK: Batch pile
+
+    /// Hand-placed offsets and tilts for up to six cards; slot 0 (the first
+    /// file) sits on top, near center and nearly straight. Fixed rather than
+    /// random so the same drop always piles the same way.
+    private static let pileSlots: [(dx: CGFloat, dy: CGFloat, angle: CGFloat)] = [
+        (0, 0, -3), (86, -34, 8), (-92, 26, -10), (58, 64, 5), (-58, -70, 11), (104, 48, -7),
+    ]
+
+    /// Collects thumbnails for the first few batch items, then swaps the
+    /// placeholder symbol for a haphazard pile of them. Items with no visual
+    /// (audio, undecodable video) become a white card with their class glyph.
+    private func loadPile(generation: UUID) {
+        let medias = items.prefix(Self.pileSlots.count).map(\.media)
+        let group = DispatchGroup()
+        var thumbs = [NSImage?](repeating: nil, count: medias.count)
+        for (index, media) in medias.enumerated() {
+            switch media.payload {
+            case .image(let loaded):
+                thumbs[index] = loaded.displayImage
+            case .file(let url):
+                switch media.mediaClass {
+                case .image:
+                    group.enter()
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        let cgImage = ImageLoader.thumbnail(from: url)
+                        DispatchQueue.main.async {
+                            if let cgImage {
+                                thumbs[index] = NSImage(cgImage: cgImage,
+                                                        size: NSSize(width: cgImage.width,
+                                                                     height: cgImage.height))
+                            }
+                            group.leave()
+                        }
+                    }
+                case .video:
+                    group.enter()
+                    let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+                    generator.appliesPreferredTrackTransform = true
+                    generator.maximumSize = CGSize(width: 512, height: 512)
+                    generator.generateCGImageAsynchronously(
+                        for: CMTime(seconds: 0, preferredTimescale: 600)) { cgImage, _, _ in
+                        DispatchQueue.main.async {
+                            if let cgImage {
+                                thumbs[index] = NSImage(cgImage: cgImage,
+                                                        size: NSSize(width: cgImage.width,
+                                                                     height: cgImage.height))
+                            }
+                            group.leave()
+                        }
+                    }
+                case .audio:
+                    break
+                }
+            }
+        }
+        let classes = medias.map(\.mediaClass)
+        group.notify(queue: .main) { [weak self] in
+            guard let self, self.ingestGeneration == generation else { return }
+            self.well.image = Self.pileImage(thumbs: thumbs, classes: classes)
+        }
+    }
+
+    /// Draws the pile: each thumbnail on a white photo card with a soft drop
+    /// shadow, offset and tilted per its slot, back cards painted first.
+    private static func pileImage(thumbs: [NSImage?], classes: [MediaClass]) -> NSImage {
+        let canvas: CGFloat = 512
+        let tile: CGFloat = 230
+        let border: CGFloat = 9
+        return NSImage(size: NSSize(width: canvas, height: canvas), flipped: false) { _ in
+            for index in stride(from: thumbs.count - 1, through: 0, by: -1) {
+                guard let context = NSGraphicsContext.current else { continue }
+                let slot = pileSlots[index]
+                context.saveGraphicsState()
+                let transform = NSAffineTransform()
+                transform.translateX(by: canvas / 2 + slot.dx, yBy: canvas / 2 + slot.dy)
+                transform.rotate(byDegrees: slot.angle)
+                transform.concat()
+
+                let thumb = thumbs[index]
+                let content: NSSize
+                if let thumb, thumb.size.width > 0, thumb.size.height > 0 {
+                    let scale = tile / max(thumb.size.width, thumb.size.height)
+                    content = NSSize(width: thumb.size.width * scale,
+                                     height: thumb.size.height * scale)
+                } else {
+                    // Glyph cards are portrait pages, like a document icon.
+                    content = NSSize(width: tile * 0.72, height: tile * 0.94)
+                }
+                let card = NSRect(x: -content.width / 2 - border,
+                                  y: -content.height / 2 - border,
+                                  width: content.width + 2 * border,
+                                  height: content.height + 2 * border)
+
+                let shadow = NSShadow()
+                shadow.shadowColor = NSColor.black.withAlphaComponent(0.35)
+                shadow.shadowBlurRadius = 12
+                shadow.shadowOffset = NSSize(width: 0, height: -6)
+                shadow.set()
+                NSColor.white.setFill()
+                card.fill()
+                let noShadow = NSShadow()
+                noShadow.shadowColor = nil
+                noShadow.set()
+
+                let contentRect = NSRect(x: -content.width / 2, y: -content.height / 2,
+                                         width: content.width, height: content.height)
+                if let thumb, thumb.size.width > 0, thumb.size.height > 0 {
+                    thumb.draw(in: contentRect, from: .zero, operation: .sourceOver,
+                               fraction: 1, respectFlipped: true,
+                               hints: [.interpolation: NSImageInterpolation.high.rawValue])
+                } else if let glyph = symbolImage(for: classes[index]) {
+                    let scale = min(contentRect.width * 0.6 / glyph.size.width,
+                                    contentRect.height * 0.6 / glyph.size.height)
+                    let size = NSSize(width: glyph.size.width * scale,
+                                      height: glyph.size.height * scale)
+                    glyph.draw(in: NSRect(x: -size.width / 2, y: -size.height / 2,
+                                          width: size.width, height: size.height))
+                }
+                NSColor(white: 0.62, alpha: 1).setStroke()
+                let outline = NSBezierPath(rect: card)
+                outline.lineWidth = 2
+                outline.stroke()
+                context.restoreGraphicsState()
+            }
+            return true
         }
     }
 

@@ -33,7 +33,9 @@ AVFoundation, and (optionally) ffmpeg backends behind it.
   class's files. Files already in the target format are skipped ("Saved 3 ·
   497 skipped"), failures don't stop the queue, and originals are never
   touched. The filename row becomes a summary ("14 images · 3 songs · 2
-  movies"); files keep their own names.
+  movies"); files keep their own names. The well shows a haphazard pile of
+  the dropped media — real thumbnails where they exist — and hovering it
+  lists the count and the first couple dozen filenames.
 - **In place.** A checkbox switches output from the chosen folder to
   next-to-the-original, handy for batch drops; the folder picker blanks out
   while it's on.

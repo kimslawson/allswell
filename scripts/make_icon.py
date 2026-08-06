@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Generates the AllsWell app icon: a classic Aqua-style image well (recessed,
-bordered, rounded rect on the modern macOS icon grid) holding three documents
+bordered, rounded rect filling the tile edge to edge) holding three documents
 side by side — audio, image, video — with the outer two clipped by the well's
 edges. Writes all AppIcon.appiconset PNGs plus Contents.json.
 
@@ -22,9 +22,6 @@ import os
 from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 S = 1024
-MARGIN = 100               # modern macOS icon grid: artwork inset from canvas
-RADIUS = 185               # ~22.4% of the 824px artwork, matches system icons
-BOX = (MARGIN, MARGIN, S - MARGIN, S - MARGIN)
 
 OUT_DIR = os.path.join(os.path.dirname(__file__), "..",
                        "AllsWell", "Assets.xcassets", "AppIcon.appiconset")
@@ -43,13 +40,17 @@ def params_for(px):
     by k = S/px so that, once downscaled to `px`, edges and shadows land at an
     intended *final* pixel thickness instead of disappearing.
 
+    The well is full-bleed at every size — the well IS the icon tile, no
+    transparent margin around it (a margin reads as a gap inside the plate
+    macOS draws behind legacy icons).
+
     Three regimes:
-      <=32  menu / list sizes: the well fills nearly the whole tile, borderless,
-            defined purely by a recessed shadow, with a big single document — so
-            it carries the same visual mass as neighbouring icons in a menu.
-      ==64  Finder list / medium: an inset Aqua well with a border and a boosted
+      <=32  menu / list sizes: borderless, defined purely by a recessed
+            shadow, with a big single document — so it carries the same
+            visual mass as neighbouring icons in a menu.
+      ==64  Finder list / medium: an Aqua well with a border and a boosted
             recessed shadow, single document.
-      >=128 the full three-doc composition, unchanged from the grid version.
+      >=128 the full three-doc composition.
     """
     k = S / px
     if px <= 32:
@@ -60,13 +61,13 @@ def params_for(px):
                     ring_opacity=0.44, ring_inset=round(2.1 * k), ring_blur=1.3 * k,
                     doc_scale=(1.32 if px <= 16 else 1.20))
     if px <= 64:
-        box, radius = geom(64)
+        box, radius = geom(8)
         return dict(minimal=True, box=box, radius=radius,
                     border_w=round(1.7 * k), inner_w=round(0.6 * k),
                     shadow_opacity=0.72, shadow_band=round(2.8 * k), shadow_blur=1.8 * k,
                     ring_opacity=0.28, ring_inset=22, ring_blur=14,
-                    doc_scale=1.06)
-    box, radius = geom(100)
+                    doc_scale=1.19)
+    box, radius = geom(8)
     return dict(minimal=False, box=box, radius=radius,
                 border_w=13, inner_w=4,
                 shadow_opacity=0.55, shadow_band=52, shadow_blur=22,
@@ -171,9 +172,14 @@ def draw_docs(icon, p, photo=None):
     if p["minimal"]:
         draw_doc(overlay, S // 2, cy, p["doc_scale"], "image", photo=photo)
     else:
-        draw_doc(overlay, 186, cy, 0.80, "audio")
-        draw_doc(overlay, S - 186, cy, 0.80, "video")
-        draw_doc(overlay, S // 2, cy, 1.0, "image", photo=photo)
+        # The layout was designed on an 824px-wide well (doc centers 86px in
+        # from each edge); scale positions and sizes with the actual well so
+        # the outer docs stay clipped by its edges at full bleed.
+        u = (box[2] - box[0]) / 824
+        edge_offset = round(86 * u)
+        draw_doc(overlay, box[0] + edge_offset, cy, 0.80 * u, "audio")
+        draw_doc(overlay, box[2] - edge_offset, cy, 0.80 * u, "video")
+        draw_doc(overlay, S // 2, cy, 1.0 * u, "image", photo=photo)
 
     # Clip everything to the inside of the well border.
     bw = p["border_w"]

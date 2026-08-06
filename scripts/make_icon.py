@@ -156,8 +156,17 @@ def draw_border(icon, box, radius, border_w=13, inner_w=4):
     if inner_w > 0:
         inner = (box[0] + border_w, box[1] + border_w,
                  box[2] - border_w, box[3] - border_w)
-        draw.rounded_rectangle(inner, radius=max(1, radius - border_w),
-                               outline=(90, 90, 98, 90), width=inner_w)
+        # The inner accent is translucent (alpha 90) so it darkens into a
+        # recessed line. Draw it on an overlay and alpha-composite, rather than
+        # straight onto the icon: ImageDraw overwrites pixels wholesale, so a
+        # direct draw would stamp alpha 90 into the well and leave a hairline
+        # ring the background shows through. Compositing blends the tint over
+        # the opaque fill while keeping the well's own alpha at 255.
+        overlay = Image.new("RGBA", icon.size, (0, 0, 0, 0))
+        ImageDraw.Draw(overlay).rounded_rectangle(
+            inner, radius=max(1, radius - border_w),
+            outline=(90, 90, 98, 90), width=inner_w)
+        icon.alpha_composite(overlay)
 
 
 def draw_docs(icon, p, photo=None):

@@ -240,6 +240,12 @@ final class WellView: NSView, NSUserInterfaceValidations {
             NSSound.beep()
             return
         }
+        Self.writeFiles(urls, to: .general)
+        delegate?.wellView(self, didCopy: urls)
+    }
+
+    /// Shared by Copy and the auto-copy-to-clipboard option.
+    static func writeFiles(_ urls: [URL], to pasteboard: NSPasteboard) {
         var pasteboardItems: [NSPasteboardItem] = []
         for url in urls {
             let item = NSPasteboardItem()
@@ -256,10 +262,8 @@ final class WellView: NSView, NSUserInterfaceValidations {
             }
             pasteboardItems.append(item)
         }
-        let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.writeObjects(pasteboardItems)
-        delegate?.wellView(self, didCopy: urls)
     }
 
     func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {

@@ -7,6 +7,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
         static let destinationPath = "destinationPath"
         static let lenaMode = "lenaMode"
         static let inPlace = "inPlace"
+        static let copyToClipboard = "copyToClipboard"
 
         static func format(for mediaClass: MediaClass) -> String {
             "format.\(mediaClass.rawValue)"
@@ -79,6 +80,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
     private var classPopups: [MediaClass: NSPopUpButton] = [:]
     private var classIcons: [MediaClass: NSImageView] = [:]
     private var classFormats: [MediaClass: [OutputFormat]] = [:]
+    private let clipboardCheckbox = NSButton(checkboxWithTitle: "Clipboard", target: nil, action: nil)
     private let inPlaceCheckbox = NSButton(checkboxWithTitle: "In place", target: nil, action: nil)
     private let destinationButton = NSButton(title: "", target: nil, action: nil)
     private let folderImage = NSImage(systemSymbolName: "folder",
@@ -111,6 +113,19 @@ final class MainViewController: NSViewController, WellViewDelegate {
         }
     }
 
+    /// Independent of the file destination: converted output is still saved
+    /// (in place or to the folder) and additionally lands on the clipboard.
+    private var copyToClipboard: Bool {
+        didSet {
+            UserDefaults.standard.set(copyToClipboard, forKey: DefaultsKey.copyToClipboard)
+            clipboardCheckbox.state = copyToClipboard ? .on : .off
+        }
+    }
+
+    /// Set when a queue run saves something, so finishing it copies once
+    /// rather than once per file.
+    private var clipboardCopyPending = false
+
     private var destinationURL: URL {
         didSet {
             UserDefaults.standard.set(destinationURL.path, forKey: DefaultsKey.destinationPath)
@@ -129,6 +144,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
                 ?? FileManager.default.homeDirectoryForCurrentUser
         }
         inPlace = defaults.bool(forKey: DefaultsKey.inPlace)
+        copyToClipboard = defaults.bool(forKey: DefaultsKey.copyToClipboard)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -193,6 +209,14 @@ final class MainViewController: NSViewController, WellViewDelegate {
             view.addSubview(icon)
             classIcons[mediaClass] = icon
         }
+
+        clipboardCheckbox.controlSize = .small
+        clipboardCheckbox.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        clipboardCheckbox.toolTip = "Also copy converted files to the clipboard"
+        clipboardCheckbox.state = copyToClipboard ? .on : .off
+        clipboardCheckbox.target = self
+        clipboardCheckbox.action = #selector(clipboardToggled(_:))
+        view.addSubview(clipboardCheckbox)
 
         inPlaceCheckbox.controlSize = .small
         inPlaceCheckbox.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
@@ -265,9 +289,13 @@ final class MainViewController: NSViewController, WellViewDelegate {
         let wellY = nameRowY + rowHeight + 8
 
         destinationLabel.frame = NSRect(x: pad, y: destRowY + 3, width: labelWidth, height: 16)
-        inPlaceCheckbox.frame = NSRect(x: pad + labelWidth + 4, y: destRowY + 2,
-                                       width: 72, height: 18)
-        let destButtonX = pad + labelWidth + 4 + 72 + 8
+        let clipboardX = pad + labelWidth + 4
+        clipboardCheckbox.frame = NSRect(x: clipboardX, y: destRowY + 2,
+                                         width: 76, height: 18)
+        let inPlaceX = clipboardX + 76 + 4
+        inPlaceCheckbox.frame = NSRect(x: inPlaceX, y: destRowY + 2,
+                                       width: 66, height: 18)
+        let destButtonX = inPlaceX + 66 + 6
         destinationButton.frame = NSRect(x: destButtonX, y: destRowY,
                                          width: bounds.width - pad - destButtonX,
                                          height: rowHeight)
@@ -846,6 +874,8 @@ final class MainViewController: NSViewController, WellViewDelegate {
                     // Only the user cancels with a live token; stop the queue.
                     self.pendingIndexes = []
                     self.hideProgressUI()
+                    // Whatever finished before the cancel still gets copied.
+                    self.copySavedFilesIfEnabled()
                     self.showToast("Canceled")
                     ConversionLog.shared.info("Canceled — \(media.suggestedName) and the rest of the queue")
                     return
@@ -875,11 +905,12 @@ final class MainViewController: NSViewController, WellViewDelegate {
             items[index].savedFormatID = format.id
             items[index].failed = false
             updateDraggableFiles()
+            clipboardCopyPending = true
             ConversionLog.shared.info("Saved \(url.path)")
             if items.count == 1 {
                 // Reflect any de-duplication ("name 2") back into the field.
                 nameField.stringValue = url.deletingPathExtension().lastPathComponent
-                showToast("Saved \(url.lastPathComponent)")
+                showToast("Saved \(url.lastPathComponent)" + (copyToClipboard ? " · Copied" : ""))
             }
         } catch {
             items[index].failed = true
@@ -893,6 +924,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
     private func finishQueue() {
         hideProgressUI()
+        let copied = copySavedFilesIfEnabled()
         guard items.count > 1 else { return }
         let saved = items.filter { $0.savedURL != nil }.count
         let skipped = items.filter(\.skipped).count
@@ -901,10 +933,25 @@ final class MainViewController: NSViewController, WellViewDelegate {
         if saved > 0 { parts.append("Saved \(saved)") }
         if skipped > 0 { parts.append("\(skipped) skipped") }
         if failed > 0 { parts.append("\(failed) failed") }
+        if copied > 0 { parts.append("\(copied) copied") }
         if !parts.isEmpty {
             showToast(parts.joined(separator: " · "))
             ConversionLog.shared.info("Batch finished — " + parts.joined(separator: " · "))
         }
+    }
+
+    /// Puts every saved output on the clipboard when the Clipboard option is
+    /// on and this queue run produced something new. Returns how many.
+    @discardableResult
+    private func copySavedFilesIfEnabled() -> Int {
+        defer { clipboardCopyPending = false }
+        guard copyToClipboard, clipboardCopyPending else { return 0 }
+        let urls = items.compactMap(\.savedURL)
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard !urls.isEmpty else { return 0 }
+        WellView.writeFiles(urls, to: .general)
+        ConversionLog.shared.info("Copied \(urls.count) file\(urls.count == 1 ? "" : "s") to the clipboard")
+        return urls.count
     }
 
     /// Drops everything in flight without any UI side effects (a new drop is
@@ -915,6 +962,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
         activeTask = nil
         activeIndex = nil
         pendingIndexes = []
+        clipboardCopyPending = false
         hideProgressUI()
     }
 
@@ -983,6 +1031,20 @@ final class MainViewController: NSViewController, WellViewDelegate {
         UserDefaults.standard.set(format.id, forKey: DefaultsKey.format(for: mediaClass))
         guard !items.isEmpty else { return }
         rebuildQueue(for: [mediaClass])
+    }
+
+    /// Doesn't touch the file destination or re-convert; turning it on with
+    /// finished output already in the well copies that output right away.
+    @objc private func clipboardToggled(_ sender: Any?) {
+        copyToClipboard = clipboardCheckbox.state == .on
+        guard copyToClipboard, activeIndex == nil, pendingIndexes.isEmpty else { return }
+        clipboardCopyPending = true
+        let copied = copySavedFilesIfEnabled()
+        if copied == 1 {
+            showToast("Copied \(items.compactMap(\.savedURL).first?.lastPathComponent ?? "file")")
+        } else if copied > 1 {
+            showToast("Copied \(copied) files")
+        }
     }
 
     @objc private func inPlaceToggled(_ sender: Any?) {

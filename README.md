@@ -43,6 +43,10 @@ AVFoundation, and (optionally) ffmpeg backends behind it.
   every save, skip, and failure (with the reason) for the session —
   filterable, errors-only scope, selectable and copyable. Batches never
   interrupt with dialogs; this is where their errors land.
+- **Clipboard, too.** A Clipboard checkbox (off by default) next to In place
+  also copies the converted file(s) to the clipboard when they finish. It's
+  independent of where files are saved — in place or the chosen folder still
+  apply. Turning it on with finished output in the well copies it right away.
 - **Auto-save.** The moment something lands, it is converted and written to
   the current destination using the current filename and format. A small toast
   confirms where it went. Conversions that take more than a beat show a thin

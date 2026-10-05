@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 protocol WellViewDelegate: AnyObject {
     func wellView(_ view: WellView, didReceive batch: [LoadedMedia])
     func wellViewDidDoubleClick(_ view: WellView)
+    func wellView(_ view: WellView, didCopy urls: [URL])
 }
 
 /// The titular control: a recessed well that accepts media drags and pastes.
@@ -16,7 +17,9 @@ final class WellView: NSView, NSUserInterfaceValidations {
 
     /// Converted outputs currently on disk. Non-empty makes the proxy image
     /// draggable back out of the well, into Finder or any other app.
-    var draggableFileURLs: [URL] = []
+    var draggableFileURLs: [URL] = [] {
+        didSet { updateCopyButton() }
+    }
 
     var placeholder = "Drop or paste a file" {
         didSet { needsDisplay = true }
@@ -27,6 +30,25 @@ final class WellView: NSView, NSUserInterfaceValidations {
     }
 
     private var mouseDownEvent: NSEvent?
+
+    private var hoverArea: NSTrackingArea?
+
+    private var isHovering = false {
+        didSet { updateCopyButton() }
+    }
+
+    /// Hover affordance in the upper-right corner: one click copies the
+    /// converted file(s), same as Edit ▸ Copy.
+    private let copyButton: NSButton = {
+        let button = HoverGlyphButton()
+        button.image = NSImage(systemSymbolName: "doc.on.doc",
+                               accessibilityDescription: "Copy")
+        button.imagePosition = .imageOnly
+        button.isBordered = false
+        button.toolTip = "Copy converted file"
+        button.isHidden = true
+        return button
+    }()
 
     private let promiseQueue: OperationQueue = {
         let queue = OperationQueue()
@@ -42,6 +64,9 @@ final class WellView: NSView, NSUserInterfaceValidations {
         setAccessibilityElement(true)
         setAccessibilityRole(.image)
         setAccessibilityLabel("Media well")
+        copyButton.target = self
+        copyButton.action = #selector(copy(_:))
+        addSubview(copyButton)
     }
 
     required init?(coder: NSCoder) {
@@ -110,6 +135,42 @@ final class WellView: NSView, NSUserInterfaceValidations {
         }
     }
 
+    override func layout() {
+        super.layout()
+        let side: CGFloat = 24
+        let inset: CGFloat = 6
+        copyButton.frame = NSRect(x: bounds.maxX - side - inset,
+                                  y: bounds.maxY - side - inset,
+                                  width: side, height: side)
+    }
+
+    // MARK: Hover
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverArea { removeTrackingArea(hoverArea) }
+        let area = NSTrackingArea(rect: .zero,
+                                  options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect],
+                                  owner: self, userInfo: nil)
+        addTrackingArea(area)
+        hoverArea = area
+        if let window {
+            isHovering = bounds.contains(convert(window.mouseLocationOutsideOfEventStream, from: nil))
+        }
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        isHovering = true
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        isHovering = false
+    }
+
+    private func updateCopyButton() {
+        copyButton.isHidden = !(isHovering && !existingFileURLs.isEmpty)
+    }
+
     // MARK: Focus
 
     override var acceptsFirstResponder: Bool { true }
@@ -163,9 +224,50 @@ final class WellView: NSView, NSUserInterfaceValidations {
         }
     }
 
+    // MARK: Copy
+
+    /// Converted outputs that still exist on disk.
+    private var existingFileURLs: [URL] {
+        draggableFileURLs.filter { FileManager.default.fileExists(atPath: $0.path) }
+    }
+
+    /// Puts the converted file(s) on the clipboard as file URLs, the way
+    /// Finder's Copy does. A lone image also carries its bytes, so apps that
+    /// only take pasted image data (Messages, chat apps, editors) get pixels.
+    @objc func copy(_ sender: Any?) {
+        let urls = existingFileURLs
+        guard !urls.isEmpty else {
+            NSSound.beep()
+            return
+        }
+        var pasteboardItems: [NSPasteboardItem] = []
+        for url in urls {
+            let item = NSPasteboardItem()
+            item.setString(url.absoluteString, forType: .fileURL)
+            if urls.count == 1,
+               let type = UTType(filenameExtension: url.pathExtension),
+               type.conforms(to: .image),
+               let data = try? Data(contentsOf: url) {
+                item.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
+                if type != .png, type != .tiff,
+                   let tiff = NSImage(data: data)?.tiffRepresentation {
+                    item.setData(tiff, forType: .tiff)
+                }
+            }
+            pasteboardItems.append(item)
+        }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.writeObjects(pasteboardItems)
+        delegate?.wellView(self, didCopy: urls)
+    }
+
     func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
         if item.action == #selector(paste(_:)) {
             return MediaLoader.canLoad(fromPasteboard: .general)
+        }
+        if item.action == #selector(copy(_:)) {
+            return !existingFileURLs.isEmpty
         }
         return responds(to: item.action)
     }
@@ -176,7 +278,7 @@ final class WellView: NSView, NSUserInterfaceValidations {
     /// A single item drags as the proxy image itself; batches drag as a stack
     /// of file icons.
     private func beginDragOut(with event: NSEvent) {
-        let urls = draggableFileURLs.filter { FileManager.default.fileExists(atPath: $0.path) }
+        let urls = existingFileURLs
         guard !urls.isEmpty else { return }
         let location = convert(event.locationInWindow, from: nil)
 
@@ -268,5 +370,19 @@ extension WellView: NSDraggingSource {
     func draggingSession(_ session: NSDraggingSession,
                          sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation {
         .copy
+    }
+}
+
+/// Borderless glyph button on a soft rounded backing, so it stays legible
+/// over whatever image the well is showing.
+private final class HoverGlyphButton: NSButton {
+    override func draw(_ dirtyRect: NSRect) {
+        let backing = NSBezierPath(roundedRect: bounds, xRadius: 5, yRadius: 5)
+        NSColor.windowBackgroundColor.withAlphaComponent(0.85).setFill()
+        backing.fill()
+        NSColor.separatorColor.setStroke()
+        backing.lineWidth = 0.5
+        backing.stroke()
+        super.draw(dirtyRect)
     }
 }

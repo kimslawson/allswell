@@ -364,6 +364,14 @@ final class MainViewController: NSViewController, WellViewDelegate {
         well.draggableFileURLs = items.compactMap(\.savedURL)
     }
 
+    func wellView(_ view: WellView, didCopy urls: [URL]) {
+        if urls.count == 1 {
+            showToast("Copied \(urls[0].lastPathComponent)")
+        } else {
+            showToast("Copied \(urls.count) files")
+        }
+    }
+
     // Easter egg: double-clicking the well swaps the Dock icon's artwork
     // for Lena of image-processing fame, and back.
     func wellViewDidDoubleClick(_ view: WellView) {

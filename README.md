@@ -50,6 +50,11 @@ AVFoundation, and (optionally) ffmpeg backends behind it.
 - **Drag it back out.** Once converted, the proxy in the well *is* the
   converted file: drag it out into Finder, Mail, or any other app. A batch
   drags as the whole set of converted files.
+- **Or copy it.** Once converted, Edit ▸ Copy (⌘C) with the well focused —
+  or the copy glyph that appears in the well's upper-right corner on hover —
+  puts the converted file(s) on the clipboard, ready to paste into Finder,
+  Mail, or a chat. A single image also carries its pixels for apps that only
+  accept pasted image data.
 - **Type-aware format picker.** The format popup offers what makes sense for
   what you dropped, and remembers your last choice per media class.
 - **Fix-ups are renames.** Editing the filename, switching the format, or

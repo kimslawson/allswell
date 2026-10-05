@@ -301,17 +301,25 @@ final class MainViewController: NSViewController, WellViewDelegate {
         let controlMaxX = bounds.width - margin
         let controlWidth = controlMaxX - controlX
 
-        // Under a transparent titlebar the view extends to the window top;
-        // keep the content below the titlebar.
-        var topY = bounds.maxY
-        if let window = view.window {
-            topY = min(topY, view.convert(window.contentLayoutRect, from: nil).maxY)
-        }
-
         let destRowY = margin
         let convertRowY = destRowY + rowHeight + rowSpacing
         let nameRowY = convertRowY + rowHeight + rowSpacing
         let wellY = nameRowY + rowHeight + groupSpacing
+
+        // Under a transparent titlebar the view extends to the window top;
+        // keep the content below the titlebar.
+        var wellTop = bounds.maxY - margin
+        if let window = view.window {
+            wellTop = min(wellTop, view.convert(window.contentLayoutRect, from: nil).maxY - margin)
+            // Brushed metal has no titlebar strip, just metal: tuck the well
+            // up so the traffic lights (and the title beside them) sit
+            // centered in the band between the window top and the well.
+            if metalBackground != nil, let close = window.standardWindowButton(.closeButton) {
+                let lights = view.convert(close.convert(close.bounds, to: nil), from: nil)
+                let centered = 2 * lights.midY - bounds.maxY
+                wellTop = min(max(centered, wellY + 1), bounds.maxY - margin)
+            }
+        }
 
         // Labels sit on their row's text baseline: +3 against popups and
         // text fields, +3.5 against the rounded push button (measured on a
@@ -371,7 +379,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
         well.frame = NSRect(x: margin, y: wellY,
                             width: bounds.width - 2 * margin,
-                            height: topY - margin - wellY)
+                            height: wellTop - wellY)
         layoutProgressUI()
     }
 

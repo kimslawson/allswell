@@ -75,6 +75,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
     private let well = WellView(frame: .zero)
     private let nameField = NSTextField(string: "")
     private let summaryLabel = NSTextField(labelWithString: "")
+    private let nameLabel = MainViewController.captionLabel("Name:")
     private let convertLabel = MainViewController.captionLabel("Convert to:")
     private let destinationLabel = MainViewController.captionLabel("Destination:")
     private var classPopups: [MediaClass: NSPopUpButton] = [:]
@@ -156,6 +157,8 @@ final class MainViewController: NSViewController, WellViewDelegate {
         let label = NSTextField(labelWithString: text)
         label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         label.textColor = .labelColor
+        // Form labels right-align so their colons line up in one column.
+        label.alignment = .right
         return label
     }
 
@@ -180,6 +183,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
         summaryLabel.isHidden = true
         view.addSubview(summaryLabel)
 
+        view.addSubview(nameLabel)
         view.addSubview(convertLabel)
         view.addSubview(destinationLabel)
 
@@ -276,60 +280,91 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
     // MARK: Layout
 
+    /// A form under the well, per the Mac layout guidelines: right-aligned
+    /// labels with colons in one column, 6pt from a column of left-aligned
+    /// controls that share one leading and one trailing edge; similar
+    /// controls get equal widths and stretch with the window; 20pt side and
+    /// bottom margins, 14pt under the titlebar, 12pt between groups.
     override func viewDidLayout() {
         super.viewDidLayout()
         let bounds = view.bounds
-        let pad: CGFloat = 10
+        let margin: CGFloat = 20
+        let topMargin: CGFloat = 14
+        let labelGap: CGFloat = 6
         let rowHeight: CGFloat = 22
-        let labelWidth: CGFloat = 66
+        let rowSpacing: CGFloat = 8
+        let groupSpacing: CGFloat = 12
 
-        let destRowY = pad
-        let convertRowY = destRowY + rowHeight + 8
-        let nameRowY = convertRowY + rowHeight + 8
-        let wellY = nameRowY + rowHeight + 8
+        let labels = [nameLabel, convertLabel, destinationLabel]
+        let labelWidth = ceil(labels.map(\.fittingSize.width).max() ?? 0)
+        let controlX = margin + labelWidth + labelGap
+        let controlMaxX = bounds.width - margin
+        let controlWidth = controlMaxX - controlX
 
-        // Label and checkbox titles share the folder button's text baseline
-        // (measured on a 2x screenshot); half points snap on 1x displays.
-        destinationLabel.frame = view.backingAlignedRect(
-            NSRect(x: pad, y: destRowY + 3.5, width: labelWidth, height: 16),
-            options: .alignAllEdgesNearest)
-        let clipboardX = pad + labelWidth + 4
-        clipboardCheckbox.frame = view.backingAlignedRect(
-            NSRect(x: clipboardX, y: destRowY + 3.5, width: 76, height: 18),
-            options: .alignAllEdgesNearest)
-        let inPlaceX = clipboardX + 76 + 4
-        inPlaceCheckbox.frame = view.backingAlignedRect(
-            NSRect(x: inPlaceX, y: destRowY + 3.5, width: 66, height: 18),
-            options: .alignAllEdgesNearest)
-        let destButtonX = inPlaceX + 66 + 6
-        destinationButton.frame = NSRect(x: destButtonX, y: destRowY,
-                                         width: bounds.width - pad - destButtonX,
-                                         height: rowHeight)
+        let destRowY = margin
+        let convertRowY = destRowY + rowHeight + rowSpacing
+        let nameRowY = convertRowY + rowHeight + rowSpacing
+        let wellY = nameRowY + rowHeight + groupSpacing
 
-        // The convert row's contents sit 1pt below its slot; optical
-        // spacing between the name field and the destination row.
-        let convertY = convertRowY - 1
-        convertLabel.frame = NSRect(x: pad, y: convertY + 3, width: labelWidth, height: 16)
-        // Fixed slots, never moving: image, audio, video — muscle memory.
-        // Stride = icon (16) + gap (2) + popup (74) + slot gap (7), so each
-        // glyph sits visibly closer to its own picker than to its neighbor.
-        for (index, mediaClass) in Self.orderedClasses.enumerated() {
-            let iconX = pad + labelWidth + 4 + CGFloat(index) * 99
-            classIcons[mediaClass]?.frame = NSRect(x: iconX, y: convertY + 3,
-                                                   width: 16, height: 16)
-            classPopups[mediaClass]?.frame = NSRect(x: iconX + 18, y: convertY,
-                                                    width: 74, height: rowHeight)
+        // Labels sit on their row's text baseline: +3 against popups and
+        // text fields, +3.5 against the rounded push button (measured on a
+        // 2x screenshot); half points snap on 1x displays.
+        func place(_ label: NSTextField, rowY: CGFloat, offset: CGFloat) {
+            label.frame = view.backingAlignedRect(
+                NSRect(x: margin, y: rowY + offset, width: labelWidth, height: 16),
+                options: .alignAllEdgesNearest)
         }
 
-        let nameFrame = NSRect(x: pad, y: nameRowY,
-                               width: bounds.width - 2 * pad, height: rowHeight)
-        nameField.frame = nameFrame
-        summaryLabel.frame = NSRect(x: pad, y: nameRowY + 3,
-                                    width: bounds.width - 2 * pad, height: 16)
+        // Destination: checkboxes at the leading edge, folder button
+        // stretching to the trailing edge.
+        place(destinationLabel, rowY: destRowY, offset: 3.5)
+        let clipboardWidth = ceil(clipboardCheckbox.fittingSize.width)
+        clipboardCheckbox.frame = view.backingAlignedRect(
+            NSRect(x: controlX, y: destRowY + 3.5, width: clipboardWidth, height: 18),
+            options: .alignAllEdgesNearest)
+        let inPlaceX = controlX + clipboardWidth + rowSpacing
+        let inPlaceWidth = ceil(inPlaceCheckbox.fittingSize.width)
+        inPlaceCheckbox.frame = view.backingAlignedRect(
+            NSRect(x: inPlaceX, y: destRowY + 3.5, width: inPlaceWidth, height: 18),
+            options: .alignAllEdgesNearest)
+        let destButtonX = inPlaceX + inPlaceWidth + rowSpacing
+        destinationButton.frame = NSRect(x: destButtonX, y: destRowY,
+                                         width: controlMaxX - destButtonX,
+                                         height: rowHeight)
 
-        well.frame = NSRect(x: pad, y: wellY,
-                            width: bounds.width - 2 * pad,
-                            height: bounds.maxY - pad - wellY)
+        // Convert to: three fixed slots (image, audio, video — muscle
+        // memory) of equal width filling the column. Each glyph sits 2pt
+        // from its own picker and a full slot gap from its neighbor's. The
+        // row's contents sit 1pt below its slot for optical spacing against
+        // the rounded button below.
+        let convertY = convertRowY - 1
+        place(convertLabel, rowY: convertY, offset: 3)
+        let iconSize: CGFloat = 16
+        let iconGap: CGFloat = 2
+        let slotGap: CGFloat = 8
+        let slotCount = CGFloat(Self.orderedClasses.count)
+        let slotWidth = floor((controlWidth - slotGap * (slotCount - 1)) / slotCount)
+        for (index, mediaClass) in Self.orderedClasses.enumerated() {
+            let slotX = controlX + CGFloat(index) * (slotWidth + slotGap)
+            // The last slot absorbs rounding so every row ends on one edge.
+            let slotMaxX = index == Self.orderedClasses.count - 1 ? controlMaxX : slotX + slotWidth
+            classIcons[mediaClass]?.frame = NSRect(x: slotX, y: convertY + 3,
+                                                   width: iconSize, height: iconSize)
+            let popupX = slotX + iconSize + iconGap
+            classPopups[mediaClass]?.frame = NSRect(x: popupX, y: convertY,
+                                                    width: slotMaxX - popupX, height: rowHeight)
+        }
+
+        // Name: the field spans the whole control column.
+        place(nameLabel, rowY: nameRowY, offset: 3)
+        nameField.frame = NSRect(x: controlX, y: nameRowY,
+                                 width: controlWidth, height: rowHeight)
+        summaryLabel.frame = NSRect(x: controlX, y: nameRowY + 3,
+                                    width: controlWidth, height: 16)
+
+        well.frame = NSRect(x: margin, y: wellY,
+                            width: bounds.width - 2 * margin,
+                            height: bounds.maxY - topMargin - wellY)
         layoutProgressUI()
     }
 
@@ -671,6 +706,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
     }
 
     private func updateNameRow() {
+        nameLabel.stringValue = items.count > 1 ? "Files:" : "Name:"
         if items.count > 1 {
             nameField.isHidden = true
             summaryLabel.isHidden = false

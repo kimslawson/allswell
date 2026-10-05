@@ -306,15 +306,18 @@ final class MainViewController: NSViewController, WellViewDelegate {
                                          width: bounds.width - pad - destButtonX,
                                          height: rowHeight)
 
-        convertLabel.frame = NSRect(x: pad, y: convertRowY + 3, width: labelWidth, height: 16)
+        // The convert row's contents sit 1pt below its slot; optical
+        // spacing between the name field and the destination row.
+        let convertY = convertRowY - 1
+        convertLabel.frame = NSRect(x: pad, y: convertY + 3, width: labelWidth, height: 16)
         // Fixed slots, never moving: image, audio, video — muscle memory.
         // Stride = icon (16) + gap (2) + popup (74) + slot gap (7), so each
         // glyph sits visibly closer to its own picker than to its neighbor.
         for (index, mediaClass) in Self.orderedClasses.enumerated() {
             let iconX = pad + labelWidth + 4 + CGFloat(index) * 99
-            classIcons[mediaClass]?.frame = NSRect(x: iconX, y: convertRowY + 3,
+            classIcons[mediaClass]?.frame = NSRect(x: iconX, y: convertY + 3,
                                                    width: 16, height: 16)
-            classPopups[mediaClass]?.frame = NSRect(x: iconX + 18, y: convertRowY,
+            classPopups[mediaClass]?.frame = NSRect(x: iconX + 18, y: convertY,
                                                     width: 74, height: rowHeight)
         }
 

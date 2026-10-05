@@ -283,13 +283,12 @@ final class MainViewController: NSViewController, WellViewDelegate {
     /// A form under the well, per the Mac layout guidelines: right-aligned
     /// labels with colons in one column, 6pt from a column of left-aligned
     /// controls that share one leading and one trailing edge; similar
-    /// controls get equal widths and stretch with the window; 20pt side and
-    /// bottom margins, 14pt under the titlebar, 12pt between groups.
+    /// controls get equal widths and stretch with the window; 10pt margins
+    /// all around (the compact utility-window margin), 12pt between groups.
     override func viewDidLayout() {
         super.viewDidLayout()
         let bounds = view.bounds
-        let margin: CGFloat = 20
-        let topMargin: CGFloat = 14
+        let margin: CGFloat = 10
         let labelGap: CGFloat = 6
         let rowHeight: CGFloat = 22
         let rowSpacing: CGFloat = 8
@@ -364,7 +363,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
         well.frame = NSRect(x: margin, y: wellY,
                             width: bounds.width - 2 * margin,
-                            height: bounds.maxY - topMargin - wellY)
+                            height: bounds.maxY - margin - wellY)
         layoutProgressUI()
     }
 

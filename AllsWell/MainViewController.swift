@@ -288,13 +288,19 @@ final class MainViewController: NSViewController, WellViewDelegate {
         let nameRowY = convertRowY + rowHeight + 8
         let wellY = nameRowY + rowHeight + 8
 
-        destinationLabel.frame = NSRect(x: pad, y: destRowY + 3, width: labelWidth, height: 16)
+        // Label and checkbox titles share the folder button's text baseline
+        // (measured on a 2x screenshot); half points snap on 1x displays.
+        destinationLabel.frame = view.backingAlignedRect(
+            NSRect(x: pad, y: destRowY + 3.5, width: labelWidth, height: 16),
+            options: .alignAllEdgesNearest)
         let clipboardX = pad + labelWidth + 4
-        clipboardCheckbox.frame = NSRect(x: clipboardX, y: destRowY + 2,
-                                         width: 76, height: 18)
+        clipboardCheckbox.frame = view.backingAlignedRect(
+            NSRect(x: clipboardX, y: destRowY + 3.5, width: 76, height: 18),
+            options: .alignAllEdgesNearest)
         let inPlaceX = clipboardX + 76 + 4
-        inPlaceCheckbox.frame = NSRect(x: inPlaceX, y: destRowY + 2,
-                                       width: 66, height: 18)
+        inPlaceCheckbox.frame = view.backingAlignedRect(
+            NSRect(x: inPlaceX, y: destRowY + 3.5, width: 66, height: 18),
+            options: .alignAllEdgesNearest)
         let destButtonX = inPlaceX + 66 + 6
         destinationButton.frame = NSRect(x: destButtonX, y: destRowY,
                                          width: bounds.width - pad - destButtonX,

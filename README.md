@@ -39,6 +39,10 @@ AVFoundation, and (optionally) ffmpeg backends behind it.
 - **In place.** A checkbox switches output from the chosen folder to
   next-to-the-original, handy for batch drops; the folder picker blanks out
   while it's on.
+- **Brushed metal.** View ▸ Brushed Metal swaps the window for a homage to
+  the Panther/Tiger textured look: a generated brushed-aluminum surface that
+  runs under the titlebar, light appearance pinned, and the whole metal
+  surface drags the window, like the original.
 - **The log knows why.** Window ▸ Show Log (⌘L) opens a second window with
   every save, skip, and failure (with the reason) for the session —
   filterable, errors-only scope, selectable and copyable. Batches never

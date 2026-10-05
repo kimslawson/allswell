@@ -1,6 +1,6 @@
 import AppKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var windowController: MainWindowController?
     private var logWindowController: LogWindowController?
     private var pendingURLs: [URL] = []
@@ -87,6 +87,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
         editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
 
+        let viewItem = NSMenuItem()
+        mainMenu.addItem(viewItem)
+        let viewMenu = NSMenu(title: "View")
+        viewItem.submenu = viewMenu
+        let metal = NSMenuItem(title: "Brushed Metal",
+                               action: #selector(toggleBrushedMetal(_:)),
+                               keyEquivalent: "")
+        metal.target = self
+        viewMenu.addItem(metal)
+
         let windowItem = NSMenuItem()
         mainMenu.addItem(windowItem)
         let windowMenu = NSMenu(title: "Window")
@@ -103,6 +113,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.windowsMenu = windowMenu
 
         NSApp.mainMenu = mainMenu
+    }
+
+    @objc private func toggleBrushedMetal(_ sender: Any?) {
+        BrushedMetal.isEnabled.toggle()
+        windowController?.applyTheme()
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(toggleBrushedMetal(_:)) {
+            menuItem.state = BrushedMetal.isEnabled ? .on : .off
+        }
+        return true
     }
 
     @objc private func showLog(_ sender: Any?) {

@@ -19,6 +19,7 @@
 		AB000000000000000000010B /* VideoConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000000000000000000000D /* VideoConverter.swift */; };
 		AB000000000000000000010C /* ConversionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000000000000000000000E /* ConversionLog.swift */; };
 		AB000000000000000000010D /* LogWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB000000000000000000000F /* LogWindowController.swift */; };
+		AB000000000000000000010E /* BrushedMetal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000010 /* BrushedMetal.swift */; };
 		AB0000000000000000000107 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB0000000000000000000008 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -35,6 +36,7 @@
 		AB000000000000000000000D /* VideoConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoConverter.swift; sourceTree = "<group>"; };
 		AB000000000000000000000E /* ConversionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversionLog.swift; sourceTree = "<group>"; };
 		AB000000000000000000000F /* LogWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindowController.swift; sourceTree = "<group>"; };
+		AB0000000000000000000010 /* BrushedMetal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrushedMetal.swift; sourceTree = "<group>"; };
 		AB0000000000000000000007 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AB0000000000000000000008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AB0000000000000000000009 /* AllsWell.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AllsWell.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -74,6 +76,7 @@
 				AB000000000000000000000C /* FFmpegConverter.swift */,
 				AB000000000000000000000E /* ConversionLog.swift */,
 				AB000000000000000000000F /* LogWindowController.swift */,
+				AB0000000000000000000010 /* BrushedMetal.swift */,
 				AB0000000000000000000008 /* Assets.xcassets */,
 				AB0000000000000000000007 /* Info.plist */,
 			);
@@ -169,6 +172,7 @@
 				AB000000000000000000010B /* VideoConverter.swift in Sources */,
 				AB000000000000000000010C /* ConversionLog.swift in Sources */,
 				AB000000000000000000010D /* LogWindowController.swift in Sources */,
+				AB000000000000000000010E /* BrushedMetal.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

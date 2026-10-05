@@ -171,6 +171,10 @@ final class WellView: NSView, NSUserInterfaceValidations {
         copyButton.isHidden = !(isHovering && !existingFileURLs.isEmpty)
     }
 
+    // Dragging the well drags its file out, never the window (which a
+    // movable-by-background brushed metal window would otherwise do).
+    override var mouseDownCanMoveWindow: Bool { false }
+
     // MARK: Focus
 
     override var acceptsFirstResponder: Bool { true }

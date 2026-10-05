@@ -24,6 +24,25 @@ final class MainWindowController: NSWindowController {
         self.init(window: panel)
         contentViewController = MainViewController()
         panel.setFrameAutosaveName("AllsWellMainWindow")
+        applyTheme()
+    }
+
+    /// Brushed metal runs the content under a transparent titlebar so the
+    /// metal reads as one continuous surface, and pins the light appearance
+    /// (metal never had a dark mode). Off restores the stock window.
+    func applyTheme() {
+        guard let window,
+              let controller = contentViewController as? MainViewController else { return }
+        let metal = BrushedMetal.isEnabled
+        if metal {
+            window.styleMask.insert(.fullSizeContentView)
+        } else {
+            window.styleMask.remove(.fullSizeContentView)
+        }
+        window.titlebarAppearsTransparent = metal
+        window.isMovableByWindowBackground = metal
+        window.appearance = metal ? NSAppearance(named: .aqua) : nil
+        controller.setBrushedMetal(metal)
     }
 
     func ingest(_ urls: [URL]) {

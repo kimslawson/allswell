@@ -73,6 +73,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
     // MARK: UI
 
     private let well = WellView(frame: .zero)
+    private var metalBackground: BrushedMetalView?
     private let nameField = NSTextField(string: "")
     private let summaryLabel = NSTextField(labelWithString: "")
     private let nameLabel = MainViewController.captionLabel("Name:")
@@ -300,6 +301,13 @@ final class MainViewController: NSViewController, WellViewDelegate {
         let controlMaxX = bounds.width - margin
         let controlWidth = controlMaxX - controlX
 
+        // Under a transparent titlebar the view extends to the window top;
+        // keep the content below the titlebar.
+        var topY = bounds.maxY
+        if let window = view.window {
+            topY = min(topY, view.convert(window.contentLayoutRect, from: nil).maxY)
+        }
+
         let destRowY = margin
         let convertRowY = destRowY + rowHeight + rowSpacing
         let nameRowY = convertRowY + rowHeight + rowSpacing
@@ -363,8 +371,21 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
         well.frame = NSRect(x: margin, y: wellY,
                             width: bounds.width - 2 * margin,
-                            height: bounds.maxY - margin - wellY)
+                            height: topY - margin - wellY)
         layoutProgressUI()
+    }
+
+    func setBrushedMetal(_ enabled: Bool) {
+        if enabled, metalBackground == nil {
+            let background = BrushedMetalView(frame: view.bounds)
+            background.autoresizingMask = [.width, .height]
+            view.addSubview(background, positioned: .below, relativeTo: nil)
+            metalBackground = background
+        } else if !enabled {
+            metalBackground?.removeFromSuperview()
+            metalBackground = nil
+        }
+        view.needsLayout = true
     }
 
     private func layoutProgressUI() {

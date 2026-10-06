@@ -74,6 +74,8 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
     private let well = WellView(frame: .zero)
     private var metalBackground: BrushedMetalView?
+    /// Stands in for the window title in brushed metal, embossed.
+    private let metalTitle = NSTextField(labelWithString: "")
     private let nameField = NSTextField(string: "")
     private let summaryLabel = NSTextField(labelWithString: "")
     private let nameLabel = MainViewController.captionLabel("Name:")
@@ -309,6 +311,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
         // Under a transparent titlebar the view extends to the window top;
         // keep the content below the titlebar.
         var wellTop = bounds.maxY - margin
+        var lightsMidY: CGFloat?
         if let window = view.window {
             wellTop = min(wellTop, view.convert(window.contentLayoutRect, from: nil).maxY - margin)
             // Brushed metal has no titlebar strip, just metal: tuck the well
@@ -316,6 +319,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
             // centered in the band between the window top and the well.
             if metalBackground != nil, let close = window.standardWindowButton(.closeButton) {
                 let lights = view.convert(close.convert(close.bounds, to: nil), from: nil)
+                lightsMidY = lights.midY
                 let centered = 2 * lights.midY - bounds.maxY
                 wellTop = min(max(centered, wellY + 1), bounds.maxY - margin)
             }
@@ -380,6 +384,23 @@ final class MainViewController: NSViewController, WellViewDelegate {
         well.frame = NSRect(x: margin, y: wellY,
                             width: bounds.width - 2 * margin,
                             height: wellTop - wellY)
+
+        if let metalBackground {
+            // The well's 1pt border runs along a path inset 1.5pt with 7pt
+            // corners, so its outer edge is inset 1pt (radius 7.5); the
+            // name field's bezel is its frame.
+            metalBackground.sunkenShapes = [
+                SunkenShape(rect: well.frame.insetBy(dx: 1, dy: 1), cornerRadius: 7.5),
+                SunkenShape(rect: nameField.frame, cornerRadius: 0),
+            ]
+            metalTitle.stringValue = view.window?.title ?? ""
+            let size = metalTitle.fittingSize
+            let midY = lightsMidY ?? (wellTop + bounds.maxY) / 2
+            metalTitle.frame = view.backingAlignedRect(
+                NSRect(x: bounds.midX - size.width / 2, y: midY - size.height / 2,
+                       width: size.width, height: size.height),
+                options: .alignAllEdgesNearest)
+        }
         layoutProgressUI()
     }
 
@@ -389,9 +410,20 @@ final class MainViewController: NSViewController, WellViewDelegate {
             background.autoresizingMask = [.width, .height]
             view.addSubview(background, positioned: .below, relativeTo: nil)
             metalBackground = background
+            metalTitle.font = .titleBarFont(ofSize: NSFont.smallSystemFontSize)
+            metalTitle.textColor = .labelColor
+            view.addSubview(metalTitle)
         } else if !enabled {
             metalBackground?.removeFromSuperview()
             metalBackground = nil
+            metalTitle.removeFromSuperview()
+        }
+        // Stamp the text and glyphs that sit directly on the metal.
+        let embossed: [NSView] = [metalTitle, nameLabel, convertLabel, destinationLabel,
+                                  summaryLabel, clipboardCheckbox, inPlaceCheckbox]
+            + Self.orderedClasses.compactMap { classIcons[$0] }
+        for item in embossed {
+            item.shadow = enabled ? BrushedMetal.embossShadow() : nil
         }
         view.needsLayout = true
     }

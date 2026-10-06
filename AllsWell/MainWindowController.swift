@@ -42,8 +42,6 @@ final class MainWindowController: NSWindowController {
         window.titlebarAppearsTransparent = metal
         window.isMovableByWindowBackground = metal
         window.appearance = metal ? NSAppearance(named: .aqua) : nil
-        // The system title can't be embossed; the view draws its own.
-        window.titleVisibility = metal ? .hidden : .visible
         controller.setBrushedMetal(metal)
     }
 

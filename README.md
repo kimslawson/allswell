@@ -1,9 +1,8 @@
 # AllsWell
 
-A convert-everything Mac utility, grown from
-[ImageWell](https://github.com/kimslawson/imagewell): a single media well.
-Drop or paste a file into it and it is immediately converted and saved to the
-folder of your choice.
+A tiny native Mac media converter built around a single media well.
+
+Drop or paste media. Pick the format. AllsWell converts it immediately.
 
 | ![App icon](AllsWell/Assets.xcassets/AppIcon.appiconset/icon_256.png) | ![The AllsWell window](screenshot.png) |
 |:---:|:---:|

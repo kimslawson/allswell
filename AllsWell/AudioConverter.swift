@@ -82,14 +82,24 @@ final class AudioFileConverter: Converter {
         guard let buffer = AVAudioPCMBuffer(pcmFormat: pcmFormat, frameCapacity: 32768) else {
             throw ConversionError.failed("Could not allocate an audio buffer.")
         }
+        // Count frames ourselves rather than polling `framePosition`: on some
+        // MP3s its getter raises an Objective-C exception, which Swift can't
+        // catch and which aborts the app. A VBR MP3's length is only an
+        // estimate, so an empty read, not the count, is what ends the loop.
+        var framesRead: AVAudioFramePosition = 0
         var lastReported = 0.0
-        while input.framePosition < input.length {
+        while true {
             if task.isCancelled { throw ConversionError.cancelled }
-            try input.read(into: buffer)
+            do {
+                try input.read(into: buffer)
+            } catch where totalFrames > 0 && framesRead >= totalFrames {
+                break // reading at the end may error instead of coming up empty
+            }
             if buffer.frameLength == 0 { break }
             try output.write(from: buffer)
+            framesRead += AVAudioFramePosition(buffer.frameLength)
             if totalFrames > 0 {
-                let fraction = Double(input.framePosition) / Double(totalFrames)
+                let fraction = min(Double(framesRead) / Double(totalFrames), 1)
                 if fraction - lastReported >= 0.01 {
                     lastReported = fraction
                     DispatchQueue.main.async { progress(fraction) }

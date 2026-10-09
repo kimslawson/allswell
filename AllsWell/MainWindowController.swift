@@ -8,7 +8,7 @@ final class MainPanel: NSPanel {
     override var canBecomeMain: Bool { true }
 }
 
-final class MainWindowController: NSWindowController {
+final class MainWindowController: NSWindowController, NSWindowDelegate {
     convenience init() {
         let panel = MainPanel(
             contentRect: NSRect(x: 0, y: 0, width: 380, height: 450),
@@ -22,6 +22,7 @@ final class MainWindowController: NSWindowController {
         panel.minSize = NSSize(width: 380, height: 300)
         panel.center()
         self.init(window: panel)
+        panel.delegate = self
         contentViewController = MainViewController()
         panel.setFrameAutosaveName("AllsWellMainWindow")
         applyTheme()
@@ -43,6 +44,27 @@ final class MainWindowController: NSWindowController {
         window.isMovableByWindowBackground = metal
         window.appearance = metal ? NSAppearance(named: .aqua) : nil
         controller.setBrushedMetal(metal)
+    }
+
+    /// The window is the app: closing it quits, by way of the app's usual
+    /// termination path so ⌘W, the close button, and ⌘Q all ask the same
+    /// question when a conversion is running. Deferred so the quit doesn't
+    /// run inside the close.
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        DispatchQueue.main.async { NSApp.terminate(nil) }
+        return false
+    }
+
+    var isConverting: Bool {
+        (contentViewController as? MainViewController)?.isConverting ?? false
+    }
+
+    func confirmQuitWhileConverting(_ reply: @escaping (Bool) -> Void) {
+        guard let controller = contentViewController as? MainViewController else {
+            DispatchQueue.main.async { reply(true) }
+            return
+        }
+        controller.confirmQuitWhileConverting(reply)
     }
 
     func ingest(_ urls: [URL]) {

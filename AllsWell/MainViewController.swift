@@ -100,6 +100,8 @@ final class MainViewController: NSViewController, WellViewDelegate {
     private var pendingIndexes: [Int] = []
     private var activeIndex: Int?
     private var activeTask: ConversionTask?
+    /// Where the active conversion is writing, so quitting can remove it.
+    private var activeTempURL: URL?
     /// Bumped whenever the in-flight conversion is abandoned, so its
     /// completion (and its temp file) can be recognized and discarded.
     private var taskToken = UUID()
@@ -958,6 +960,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
             .appendingPathComponent(UUID().uuidString)
             .appendingPathExtension(format.fileExtension)
 
+        activeTempURL = tempURL
         activeTask = converter.convert(media, to: format, destination: tempURL, progress: { [weak self] fraction in
             guard let self, self.taskToken == token else { return }
             self.setBarFraction((Double(self.queueDone) + fraction) / Double(max(self.queueTotal, 1)))
@@ -967,6 +970,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
                 return
             }
             self.activeTask = nil
+            self.activeTempURL = nil
             self.activeIndex = nil
             switch result {
             case .success:
@@ -1057,6 +1061,52 @@ final class MainViewController: NSViewController, WellViewDelegate {
         WellView.writeFiles(urls, to: .general)
         ConversionLog.shared.info("Copied \(urls.count) file\(urls.count == 1 ? "" : "s") to the clipboard")
         return urls.count
+    }
+
+    // MARK: Quitting
+
+    var isConverting: Bool {
+        activeIndex != nil || !pendingIndexes.isEmpty
+    }
+
+    /// Asks before a quit throws away work in flight; `reply` gets true to
+    /// go ahead (the queue already stopped) or false to keep converting.
+    /// Always answers asynchronously, from the sheet.
+    func confirmQuitWhileConverting(_ reply: @escaping (Bool) -> Void) {
+        guard let window = view.window else {
+            stopForQuit()
+            DispatchQueue.main.async { reply(true) }
+            return
+        }
+        if window.isMiniaturized { window.deminiaturize(nil) }
+        window.makeKeyAndOrderFront(nil)
+        // A chooser that's up is moot now; the alert takes its place.
+        if let sheet = window.attachedSheet {
+            window.endSheet(sheet, returnCode: .cancel)
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Cancel the current conversion?"
+        alert.informativeText = "AllsWell will quit. Files already saved are kept."
+        let stopButton = alert.addButton(withTitle: "Cancel Conversion")
+        stopButton.hasDestructiveAction = true
+        let keepButton = alert.addButton(withTitle: "Keep Converting")
+        keepButton.keyEquivalent = "\u{1b}"
+        alert.beginSheetModal(for: window) { [weak self] response in
+            let quit = response == .alertFirstButtonReturn
+            if quit { self?.stopForQuit() }
+            reply(quit)
+        }
+    }
+
+    /// Cancels the queue and removes the half-written output, since the
+    /// cancelled task's own cleanup won't get to run before the app exits.
+    private func stopForQuit() {
+        if let activeTempURL {
+            try? FileManager.default.removeItem(at: activeTempURL)
+        }
+        activeTempURL = nil
+        abandonQueue()
     }
 
     /// Drops everything in flight without any UI side effects (a new drop is

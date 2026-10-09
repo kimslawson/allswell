@@ -24,9 +24,11 @@ build can encode appear in the pickers.
 
 - **Drop, paste, click, or Dock.** Drag into the well, ⌘V, click the empty
   well or File ▸ Open… (⌘O) to choose files or folders, or drop on the Dock
-  icon, even with the window closed.
+  icon, even when it isn't running.
 - **Start over.** The X that appears on hover (or Delete) empties the well;
   anything already saved stays put.
+- **Close to quit.** The window is the app: closing it quits. If a conversion
+  is running, it asks first.
 - **Batches.** Drop many files or a folder (top level only). Pickers show only
   the media types present, files already in the target format are skipped,
   and errors go to the log instead of dialogs.

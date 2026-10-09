@@ -4,7 +4,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var windowController: MainWindowController?
     private var logWindowController: LogWindowController?
     private var pendingURLs: [URL] = []
-    private var isConfirmingQuit = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
         buildMainMenu()
@@ -29,16 +28,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         controller.ingest(urls)
     }
 
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let controller = windowController, controller.isConverting else { return .terminateNow }
-        // A second ⌘Q while the question is up just leaves it up.
-        guard !isConfirmingQuit else { return .terminateCancel }
-        isConfirmingQuit = true
-        controller.confirmQuitWhileConverting { [weak self] quit in
-            self?.isConfirmingQuit = false
-            NSApp.reply(toApplicationShouldTerminate: quit)
-        }
-        return .terminateLater
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -146,8 +137,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         return true
     }
 
-    /// Same chooser as clicking the empty well; brings a minimized window
-    /// back first.
+    /// Same chooser as clicking the empty well; works with the window
+    /// closed too, bringing it back first.
     @objc private func openDocument(_ sender: Any?) {
         guard let controller = windowController else { return }
         controller.showWindow(nil)

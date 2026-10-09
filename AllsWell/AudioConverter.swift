@@ -83,9 +83,10 @@ final class AudioFileConverter: Converter {
             throw ConversionError.failed("Could not allocate an audio buffer.")
         }
         // Count frames ourselves rather than polling `framePosition`: on some
-        // MP3s its getter raises an Objective-C exception, which Swift can't
-        // catch and which aborts the app. A VBR MP3's length is only an
-        // estimate, so an empty read, not the count, is what ends the loop.
+        // files (seen with an M4A) its getter raises an Objective-C exception,
+        // which Swift can't catch and which aborts the app. Compressed
+        // formats' lengths can be estimates, so an empty read, not the count,
+        // is what ends the loop.
         var framesRead: AVAudioFramePosition = 0
         var lastReported = 0.0
         while true {

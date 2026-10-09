@@ -23,8 +23,8 @@ build can encode appear in the pickers.
 ## Use
 
 - **Drop, paste, click, or Dock.** Drag into the well, ⌘V, click the empty
-  well to choose files or folders, or drop on the Dock icon, even with the
-  window closed.
+  well or File ▸ Open… (⌘O) to choose files or folders, or drop on the Dock
+  icon, even with the window closed.
 - **Start over.** The X that appears on hover (or Delete) empties the well;
   anything already saved stays put.
 - **Batches.** Drop many files or a folder (top level only). Pickers show only

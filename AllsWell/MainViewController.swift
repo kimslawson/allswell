@@ -490,7 +490,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
     }
 
     /// Standard open panel; the choice goes through the same intake as a drop.
-    private func chooseFiles() {
+    func chooseFiles() {
         guard let window = view.window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = true

@@ -48,4 +48,8 @@ final class MainWindowController: NSWindowController {
     func ingest(_ urls: [URL]) {
         (contentViewController as? MainViewController)?.ingest(urls)
     }
+
+    func chooseFiles() {
+        (contentViewController as? MainViewController)?.chooseFiles()
+    }
 }

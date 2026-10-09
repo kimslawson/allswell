@@ -69,6 +69,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         mainMenu.addItem(fileItem)
         let fileMenu = NSMenu(title: "File")
         fileItem.submenu = fileMenu
+        let open = NSMenuItem(title: "Open…",
+                              action: #selector(openDocument(_:)),
+                              keyEquivalent: "o")
+        open.target = self
+        fileMenu.addItem(open)
+        fileMenu.addItem(.separator())
         fileMenu.addItem(NSMenuItem(title: "Close",
                                     action: #selector(NSWindow.performClose(_:)),
                                     keyEquivalent: "w"))
@@ -124,7 +130,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         if menuItem.action == #selector(toggleBrushedMetal(_:)) {
             menuItem.state = BrushedMetal.isEnabled ? .on : .off
         }
+        if menuItem.action == #selector(openDocument(_:)) {
+            // One sheet at a time (e.g. not over the destination chooser).
+            return windowController?.window?.attachedSheet == nil
+        }
         return true
+    }
+
+    /// Same chooser as clicking the empty well; works with the window
+    /// closed too, bringing it back first.
+    @objc private func openDocument(_ sender: Any?) {
+        guard let controller = windowController else { return }
+        controller.showWindow(nil)
+        controller.chooseFiles()
     }
 
     @objc private func showLog(_ sender: Any?) {

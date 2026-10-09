@@ -472,6 +472,37 @@ final class MainViewController: NSViewController, WellViewDelegate {
         }
     }
 
+    /// Back to the empty state. Anything already saved stays where it is;
+    /// a conversion in flight is dropped.
+    func wellViewDidRequestClear(_ view: WellView) {
+        abandonQueue()
+        ingestGeneration = UUID()
+        items = []
+        nameField.stringValue = ""
+        updateDraggableFiles()
+        updateWellDisplay()
+        updateNameRow()
+        updatePickerVisibility()
+    }
+
+    func wellViewDidRequestOpen(_ view: WellView) {
+        chooseFiles()
+    }
+
+    /// Standard open panel; the choice goes through the same intake as a drop.
+    private func chooseFiles() {
+        guard let window = view.window, window.attachedSheet == nil else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = MediaLoader.acceptedTypes
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self, response == .OK, !panel.urls.isEmpty else { return }
+            self.ingest(panel.urls)
+        }
+    }
+
     // Easter egg: double-clicking the well swaps the Dock icon's artwork
     // for Lena of image-processing fame, and back.
     func wellViewDidDoubleClick(_ view: WellView) {
@@ -491,6 +522,7 @@ final class MainViewController: NSViewController, WellViewDelegate {
 
     private func updateWellDisplay() {
         let generation = ingestGeneration
+        well.hasContent = !items.isEmpty
         well.toolTip = items.count > 1 ? batchTooltip() : nil
         if items.count == 1 {
             let media = items[0].media

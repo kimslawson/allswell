@@ -5,6 +5,8 @@ protocol WellViewDelegate: AnyObject {
     func wellView(_ view: WellView, didReceive batch: [LoadedMedia])
     func wellViewDidDoubleClick(_ view: WellView)
     func wellView(_ view: WellView, didCopy urls: [URL])
+    func wellViewDidRequestClear(_ view: WellView)
+    func wellViewDidRequestOpen(_ view: WellView)
 }
 
 /// The titular control: a recessed well that accepts media drags and pastes.
@@ -18,10 +20,18 @@ final class WellView: NSView, NSUserInterfaceValidations {
     /// Converted outputs currently on disk. Non-empty makes the proxy image
     /// draggable back out of the well, into Finder or any other app.
     var draggableFileURLs: [URL] = [] {
-        didSet { updateCopyButton() }
+        didSet { updateHoverButtons() }
     }
 
-    var placeholder = "Drop or paste a file" {
+    /// Whether anything is loaded. Set by the owner; shows the clear button
+    /// and turns off click-to-choose.
+    var hasContent = false {
+        didSet { updateHoverButtons() }
+    }
+
+    /// Empty-state hints, drawn as a centered bulleted list.
+    var placeholderLines = ["Drop or paste files or folders here",
+                            "Click to choose files or folders"] {
         didSet { needsDisplay = true }
     }
 
@@ -31,11 +41,28 @@ final class WellView: NSView, NSUserInterfaceValidations {
 
     private var mouseDownEvent: NSEvent?
 
+    /// A click on the empty well opens the chooser only once the double-click
+    /// window passes, so the double-click easter egg still works there.
+    private var pendingOpen: DispatchWorkItem?
+
     private var hoverArea: NSTrackingArea?
 
     private var isHovering = false {
-        didSet { updateCopyButton() }
+        didSet { updateHoverButtons() }
     }
+
+    /// Hover affordance in the upper-left corner, mirroring Copy: empties the
+    /// well. Saved outputs stay on disk.
+    private let clearButton: NSButton = {
+        let button = HoverGlyphButton()
+        button.image = NSImage(systemSymbolName: "xmark",
+                               accessibilityDescription: "Remove")
+        button.imagePosition = .imageOnly
+        button.isBordered = false
+        button.toolTip = "Remove from the well"
+        button.isHidden = true
+        return button
+    }()
 
     /// Hover affordance in the upper-right corner: one click copies the
     /// converted file(s), same as Edit ▸ Copy.
@@ -67,6 +94,9 @@ final class WellView: NSView, NSUserInterfaceValidations {
         copyButton.target = self
         copyButton.action = #selector(copy(_:))
         addSubview(copyButton)
+        clearButton.target = self
+        clearButton.action = #selector(clearWell(_:))
+        addSubview(clearButton)
     }
 
     required init?(coder: NSCoder) {
@@ -114,14 +144,7 @@ final class WellView: NSView, NSUserInterfaceValidations {
                        hints: [.interpolation: NSImageInterpolation.high.rawValue])
             NSGraphicsContext.restoreGraphicsState()
         } else {
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize),
-                .foregroundColor: NSColor.secondaryLabelColor,
-            ]
-            let size = placeholder.size(withAttributes: attributes)
-            let point = NSPoint(x: bounds.midX - size.width / 2,
-                                y: bounds.midY - size.height / 2)
-            placeholder.draw(at: point, withAttributes: attributes)
+            drawPlaceholder()
         }
 
         if isDragTarget {
@@ -135,6 +158,33 @@ final class WellView: NSView, NSUserInterfaceValidations {
         }
     }
 
+    /// The bulleted hints as one left-aligned block, centered in the well,
+    /// with wrapped lines hanging past their bullet.
+    private func drawPlaceholder() {
+        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        let indent = ceil(("\u{2022}  " as NSString).size(withAttributes: [.font: font]).width)
+        let style = NSMutableParagraphStyle()
+        style.tabStops = [NSTextTab(textAlignment: .left, location: indent)]
+        style.defaultTabInterval = indent
+        style.headIndent = indent
+        style.paragraphSpacing = 3
+        let text = NSAttributedString(
+            string: placeholderLines.map { "\u{2022}\t" + $0 }.joined(separator: "\n"),
+            attributes: [
+                .font: font,
+                .foregroundColor: NSColor.secondaryLabelColor,
+                .paragraphStyle: style,
+            ])
+        let maxWidth = bounds.width - 32
+        let size = text.boundingRect(with: NSSize(width: maxWidth, height: .greatestFiniteMagnitude),
+                                     options: [.usesLineFragmentOrigin]).size
+        let width = min(ceil(size.width) + 1, maxWidth)
+        let height = ceil(size.height)
+        text.draw(with: NSRect(x: bounds.midX - width / 2, y: bounds.midY - height / 2,
+                               width: width, height: height),
+                  options: [.usesLineFragmentOrigin])
+    }
+
     override func layout() {
         super.layout()
         let side: CGFloat = 24
@@ -142,6 +192,9 @@ final class WellView: NSView, NSUserInterfaceValidations {
         copyButton.frame = NSRect(x: bounds.maxX - side - inset,
                                   y: bounds.maxY - side - inset,
                                   width: side, height: side)
+        clearButton.frame = NSRect(x: bounds.minX + inset,
+                                   y: bounds.maxY - side - inset,
+                                   width: side, height: side)
     }
 
     // MARK: Hover
@@ -167,8 +220,9 @@ final class WellView: NSView, NSUserInterfaceValidations {
         isHovering = false
     }
 
-    private func updateCopyButton() {
+    private func updateHoverButtons() {
         copyButton.isHidden = !(isHovering && !existingFileURLs.isEmpty)
+        clearButton.isHidden = !(isHovering && hasContent)
     }
 
     // Dragging the well drags its file out, never the window (which a
@@ -191,6 +245,8 @@ final class WellView: NSView, NSUserInterfaceValidations {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        pendingOpen?.cancel()
+        pendingOpen = nil
         if event.clickCount == 2 {
             delegate?.wellViewDidDoubleClick(self)
             return
@@ -208,7 +264,44 @@ final class WellView: NSView, NSUserInterfaceValidations {
     }
 
     override func mouseUp(with event: NSEvent) {
+        // Still set means the press never turned into a drag.
+        let wasClick = mouseDownEvent != nil
         mouseDownEvent = nil
+        guard wasClick, event.clickCount == 1, !hasContent,
+              bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
+        let open = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.pendingOpen = nil
+            guard !self.hasContent else { return }
+            self.delegate?.wellViewDidRequestOpen(self)
+        }
+        pendingOpen = open
+        DispatchQueue.main.asyncAfter(deadline: .now() + NSEvent.doubleClickInterval, execute: open)
+    }
+
+    override func accessibilityPerformPress() -> Bool {
+        guard !hasContent else { return false }
+        delegate?.wellViewDidRequestOpen(self)
+        return true
+    }
+
+    // MARK: Clear
+
+    @objc func clearWell(_ sender: Any?) {
+        guard hasContent else {
+            NSSound.beep()
+            return
+        }
+        delegate?.wellViewDidRequestClear(self)
+    }
+
+    /// Delete and Forward Delete empty the well, like the X.
+    override func keyDown(with event: NSEvent) {
+        if event.specialKey == .delete || event.specialKey == .deleteForward, hasContent {
+            clearWell(nil)
+        } else {
+            super.keyDown(with: event)
+        }
     }
 
     override func drawFocusRingMask() {
